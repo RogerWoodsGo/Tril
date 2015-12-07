@@ -51,13 +51,27 @@ bool Configure::GetOption(int argc, char* argv[]) {
     return true;
 }
 
+
+
+void Configure::SetDefault() {
+    config_kv["logfile"] = "tril.log";
+    config_kv["level"] = "0";
+    config_kv["worker"] = "3";
+    config_kv["debug"] = "1";
+    config_kv["port"] = "80";
+    config_kv["hostname"] = "localhost";
+    config_kv["ipaddr"] = "127.0.0.1";
+    config_kv["pidfile"] = "tril.pid";
+    config_kv["htdoc"] = "htdoc";
+}
+
 bool Configure::LoadConfig() {
     fstream fp;
     fp.open(option_.config_file, fstream::in);
     std::string line;
     std::vector<std::string> vt;
 
-
+    
     if(!fp.is_open()) {
         std::cerr <<"cann't open configure file" << std::endl;
     }
@@ -66,9 +80,9 @@ bool Configure::LoadConfig() {
         std::string trim_line = trim(line);
         if(StringStartWith(trim_line, "#") || trim_line == "")
             continue;
-        else{
-            vt = StringSplit(trim_line, '=');    
-            if(vt.size() < 2){
+        else {
+            vt = StringSplit(trim_line, '=');
+            if(vt.size() < 2) {
                 std::cerr << "cann't open configure file" << std::endl;
                 return false;
                 break;
@@ -87,8 +101,13 @@ bool Configure::LoadConfig() {
                 config_kv["debug"] = vt[1];
             else if(trim(vt[0]) == "pidfile")
                 config_kv["pidfile"] = vt[1];
+            else if(trim(vt[0]) == "worker")
+                config_kv["worker"] = vt[1];
+            else if(trim(vt[0]) == "loglevel")
+                config_kv["loglevel"] = vt[1];
+
         }
-    }
+    }//end while
     fp.close();
     return true;
 }
@@ -96,4 +115,5 @@ bool Configure::LoadConfig() {
 
 }
 }
+
 

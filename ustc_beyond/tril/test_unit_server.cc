@@ -5,6 +5,7 @@ using namespace ustc_beyond::tril;
 int main(int argc, char* argv[]){
     Server* srv = Server::GetInstance();
     srv->ServerInit(argc, argv);
+    srv->Start();
     delete srv;
     return 0;
 }

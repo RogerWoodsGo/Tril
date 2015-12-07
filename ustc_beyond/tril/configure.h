@@ -24,13 +24,22 @@ const option long_opts[] = {
 
 class Configure {
 public:
+    Configure(){
+        this->SetDefault();
+    };
+    ~Configure(){};
     bool GetOption(int argc, char* argv[]);
     bool LoadConfig();
+    bool IsDaemonize(){
+        return option_.daemonized;
+    };
     inline std::map<std::string, std::string> GetKeyValue(){
         return config_kv;
     }
     void Usage();
 private:
+    void SetDefault();
+
     glob_option option_;
     std::map<std::string, std::string> config_kv;
 };

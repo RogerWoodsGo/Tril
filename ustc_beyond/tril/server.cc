@@ -2,7 +2,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <sys/wait.h>
+#include <errno.h>
 #include <iostream>
+#include "utils.h"
 
 namespace ustc_beyond {
 namespace tril {
@@ -18,10 +21,12 @@ void Server::ServerInit(int argc, char* argv[]) {
         return;
     };
     config_kv = config->GetKeyValue();
-    if(!NetworkInit()){
+    std::cout << "Here is ok" << std::endl;
+    log.Config(GetConfigValue("logfile"), LogLevel(StringToNumber<int>(GetConfigValue("loglevel"))));
+    if(!NetworkInit()) {
         log.Log(kError, "Network init error");
     }
-    Daemonize();
+    //Daemonize();
 }
 
 void Server::Daemonize() {
@@ -47,21 +52,127 @@ void Server::Daemonize() {
 }
 
 
-void Server::Start() {
+std::string Server::GetConfigValue(const std::string& key) {
+    if(this->config_kv.find(key) != this->config_kv.end()) {
+        return this->config_kv[key];
+    }
+    else
+        return string("");
 
+}
+
+void Server::sigHandler(int sig_num) {
+    switch (sig_num) {
+    case SIGTERM:
+        Server::srv_shutdown = true;
+        break;
+    case SIGINT:
+        if (Server::graceful_shutdown) Server::srv_shutdown = true;
+        else Server::graceful_shutdown = true;
+
+        break;
+    case SIGALRM:
+        //   handle_sig_alarm = true;
+        break;
+    //       case SIGHUP:  handle_sig_hup = 1; break;
+    case SIGCHLD:
+        break;
+    }
+}
+
+
+
+void Server::Start() {
+    int worker = 0;
+//signal catch
+    struct sigaction act;
+    act.sa_handler = Server::sigHandler;
+    sigaction(SIGINT, &act, NULL);
+    //daemonize
+    if(config->IsDaemonize())
+        Daemonize();
+    //fork worker
+    string worker_str = GetConfigValue("worker");
+    log.Log(kInfo, "worker is %s", worker_str.c_str());
+    if(!(worker = StringToNumber<int>(worker_str))) {
+        log.Log(kError, "There is no worker");
+    }
+
+    //do make worker
+    if(-1 == MakeWorker(worker))
+        log.Log(kError, "Make worker error");
+
+    //start outer loop
+    while(!Server::srv_shutdown){
+        std::cout << "this is thread" << getpid() << std::endl;
+        sleep(2); 
+    }
+    ServerFree();
+}
+
+int Server::MakeWorker(int worker) {
+    /* start watcher and workers */
+    if (worker > 0) {
+        int child = 0;
+        while (!child && !Server::srv_shutdown && !Server::graceful_shutdown) {
+            if (worker > 0) {
+                switch (fork()) {
+                case -1:
+                    return -1;
+                case 0:
+                    child = 1;
+                    break;
+                default:
+                    worker--;
+                    break;
+                }
+            } else {
+                int status;
+
+                if (-1 != wait(&status)) {
+                    /**
+                     *                   * one of our workers went away
+                     *                                       */
+                    worker++;
+                } else {
+                    switch (errno) {
+                    case EINTR:
+                        break;
+                    default:
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!child) {
+            if (Server::graceful_shutdown) {
+                kill(0, SIGINT);
+            } else if (Server::srv_shutdown) {
+                kill(0, SIGTERM);
+            }
+            std::cout << "free" << std::endl;
+
+            //log_error_close(srv);
+            //network_close(srv);
+            //connections_free(srv);
+            //plugins_free(srv);
+            ServerFree();
+            return 0;
+        }
+    }
 }
 
 bool Server::NetworkInit() {
-return true;
+    return true;
 }
 
 Server* Server::instance_ = NULL;
+bool Server::srv_shutdown = false;
+bool Server::graceful_shutdown = false;
 
 }
 }
-
-
-
 
 
 

@@ -18,20 +18,29 @@ public:
         }
     };
     void ServerInit(int argc, char* argv[]);
+    void ServerFree(){
+        delete config;
+    };
     void Daemonize();
     void Start();
+    std::string GetConfigValue(const std::string& key);
     bool NetworkInit();
     ~Server() {
         delete config;
     };
 private:
-    Logging log;
-    Configure* config;
     Server() {
         config = new Configure();
     };
-    static Server* instance_;
+    static void sigHandler(int sig_num);
+    int MakeWorker(int worker); 
+
+    Logging log;
+    Configure* config;
     map<string, string> config_kv;
+    static Server* instance_;
+    static bool srv_shutdown;
+    static bool graceful_shutdown;
 };
 }
 }
