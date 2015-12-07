@@ -23,7 +23,7 @@ public:
     inline void Config(const std::string& file_name, LogLevel level) {
         this->file_name = file_name;
         this->level = level;
-        FILE* fp = fopen(file_name.c_str(), "a+");
+        FILE* fp = (this->file_name == "") ? stdout:fopen(file_name.c_str(), "a+");
         this->fp = fp;
     };
     void Log(LogLevel level,  const char *fmt, ...);

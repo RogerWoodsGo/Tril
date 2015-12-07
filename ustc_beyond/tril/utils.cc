@@ -5,6 +5,10 @@
 #include<time.h>
 #include<iostream>
 #include<sstream>
+#include<algorithm>
+#include <functional> 
+#include <cctype>
+#include <locale>
 
 
 namespace ustc_beyond {
@@ -37,30 +41,47 @@ uint64_t GetCurrentMilisec() {
     return current_msec_;
 }
 
-vector<string> StringSplit(string src, char delim){
+vector<string> StringSplit(string src, char delim) {
     vector<string> res;
     std::stringstream os(src);
     string tmp_str;
 
-    while(std::getline(os, tmp_str, delim)){
+    while(std::getline(os, tmp_str, delim)) {
         res.push_back(tmp_str);
     }
 
     return res;
 }
 
-bool StringStartWith(string src, string prefix){
-   if(src.size() == 0)
-       return false;
+bool StringStartWith(string src, string prefix) {
+    if(src.size() == 0)
+        return false;
     size_t pos = src.find(prefix);
-   if(pos == 0)
-       return true;
-   else
-       return false;
+    if(pos == 0)
+        return true;
+    else
+        return false;
 }
 
+// trim from start
+std::string &ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+    return s;
+}
+
+// trim from end
+std::string &rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+    return s;
+}
+
+// trim from both ends
+std::string &trim(std::string &s) {
+    return ltrim(rtrim(s));
+}
 
 }
 }
+
 
 

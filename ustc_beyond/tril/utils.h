@@ -3,7 +3,9 @@
 
 #include<stdint.h>
 #include <string>
+#include <sstream>
 #include<vector>
+using namespace std;
 
 namespace ustc_beyond {
 namespace tril {
@@ -15,7 +17,23 @@ uint64_t GetCurrentMilisec();
 std::vector<std::string> StringSplit(std::string src, char delim);
 bool StringStartWith(std::string src, std::string prefix);
 //bool StringStartWith(std::string src, const char* prefix);
+std::string &ltrim(std::string &s);
+std::string &rtrim(std::string &s);
+std::string &trim(std::string &s);
+
+template <typename T> std::string NumberToString ( T Number ){
+    std::stringstream ss;
+    ss << Number;
+    return ss.str();
+};
+
+template <typename T> T StringToNumber ( const string &Text ){                    
+    stringstream ss(Text);
+    T result;
+    return ss >> result ? result : 0;
+};
 
 }
 }
 #endif
+
