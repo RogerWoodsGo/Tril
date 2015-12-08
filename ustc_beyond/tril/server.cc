@@ -5,20 +5,21 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <iostream>
+#include <fstream>
 #include "utils.h"
 
 namespace ustc_beyond {
 namespace tril {
-void Server::ServerInit(int argc, char* argv[]) {
+bool Server::ServerInit(int argc, char* argv[]) {
     //Config get option
     if(!config->GetOption(argc, argv)) {
         std::cerr << "Get option Error" << std::endl;
-        return;
+        return false;
     };
 
     if(!config->LoadConfig()) {
         std::cerr << "Load Configfile Error" << std::endl;
-        return;
+        return false;
     };
     config_kv = config->GetKeyValue();
     std::cout << "Here is ok" << std::endl;
@@ -26,6 +27,7 @@ void Server::ServerInit(int argc, char* argv[]) {
     if(!NetworkInit()) {
         log.Log(kError, "Network init error");
     }
+    return true;
     //Daemonize();
 }
 
@@ -67,9 +69,9 @@ void Server::sigHandler(int sig_num) {
         Server::srv_shutdown = true;
         break;
     case SIGINT:
-        if (Server::graceful_shutdown) Server::srv_shutdown = true;
-        else Server::graceful_shutdown = true;
-
+        //  if (Server::graceful_shutdown) Server::srv_shutdown = true;
+        // else Server::graceful_shutdown = true;
+        Server::srv_shutdown = true;
         break;
     case SIGALRM:
         //   handle_sig_alarm = true;
@@ -81,6 +83,20 @@ void Server::sigHandler(int sig_num) {
 }
 
 
+bool Server::WritePidfile(){
+    string pidfile = GetConfigValue("pidfile");
+
+    fstream of;
+    of.open(pidfile.c_str(), fstream::out);
+    if(!of.is_open()){
+        log.Log(kError, "Open pid file error");
+        return false;
+    }
+    of << NumberToString<int>(getpid()) << std::endl;
+    of.close();
+    return true;
+}
+
 
 void Server::Start() {
     int worker = 0;
@@ -91,30 +107,46 @@ void Server::Start() {
     //daemonize
     if(config->IsDaemonize())
         Daemonize();
+    //write pid file
+    if(!WritePidfile()){
+        log.Log(kError, "WritePidfile Error");
+        return;
+    }
     //fork worker
     string worker_str = GetConfigValue("worker");
     log.Log(kInfo, "worker is %s", worker_str.c_str());
     if(!(worker = StringToNumber<int>(worker_str))) {
         log.Log(kError, "There is no worker");
+        return;
     }
+
 
     //do make worker
-    if(-1 == MakeWorker(worker))
+    int ret = MakeWorker(worker);
+    if(-1 == ret) {
         log.Log(kError, "Make worker error");
+        return;
+    }
+    else if(0 == ret) {
+        log.Log(kInfo, "Exit");
+        return;
+    }
 
     //start outer loop
-    while(!Server::srv_shutdown){
+    while(!Server::srv_shutdown) {
         std::cout << "this is thread" << getpid() << std::endl;
-        sleep(2); 
+        sleep(2);
     }
-    ServerFree();
+//    if(!this->is_freed)
+//    ServerFree();
 }
 
 int Server::MakeWorker(int worker) {
     /* start watcher and workers */
     if (worker > 0) {
         int child = 0;
-        while (!child && !Server::srv_shutdown && !Server::graceful_shutdown) {
+        //while (!child && !Server::srv_shutdown && !Server::graceful_shutdown) {
+        while (!child && !Server::srv_shutdown) {
             if (worker > 0) {
                 switch (fork()) {
                 case -1:
@@ -129,10 +161,12 @@ int Server::MakeWorker(int worker) {
             } else {
                 int status;
 
+                log.Log(kInfo, "Start to wait worker %d", worker);
                 if (-1 != wait(&status)) {
                     /**
                      *                   * one of our workers went away
                      *                                       */
+                    log.Log(kError, "One worker went away %d", worker);
                     worker++;
                 } else {
                     switch (errno) {
@@ -151,16 +185,17 @@ int Server::MakeWorker(int worker) {
             } else if (Server::srv_shutdown) {
                 kill(0, SIGTERM);
             }
-            std::cout << "free" << std::endl;
 
             //log_error_close(srv);
             //network_close(srv);
             //connections_free(srv);
             //plugins_free(srv);
             ServerFree();
+//            exit(0);
             return 0;
         }
     }
+    return 1;
 }
 
 bool Server::NetworkInit() {
@@ -173,6 +208,7 @@ bool Server::graceful_shutdown = false;
 
 }
 }
+
 
 
 

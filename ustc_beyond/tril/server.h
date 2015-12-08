@@ -17,14 +17,15 @@ public:
             return new Server();
         }
     };
-    void ServerInit(int argc, char* argv[]);
+    bool ServerInit(int argc, char* argv[]);
+    bool NetworkInit();
+    bool WritePidfile();
     void ServerFree(){
         delete config;
     };
     void Daemonize();
     void Start();
     std::string GetConfigValue(const std::string& key);
-    bool NetworkInit();
     ~Server() {
         delete config;
     };
