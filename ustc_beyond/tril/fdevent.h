@@ -2,9 +2,7 @@
 #define FDEVENT_H_
 #include <list>
 #include "setting.h"
-#include "server.h"
 #include "iostrategy.h"
-#include "handlefunc.h"
 
 namespace ustc_beyond {
 namespace tril {
@@ -30,6 +28,8 @@ typedef enum {
     FDEVENT_HANDLER_LIBEV
 } fdevent_handler_t;
 
+
+class HandleFunc;
 
 class Fdnode {
 public:
@@ -57,12 +57,13 @@ private:
     HandleFunc* hf;
 };
 
+
 class Fdevent {
 public:
     Fdevent(){};
     ~Fdevent(){};
     Fdevent* FdeventInit(int max_size, fdevent_handler_t type);
-    bool FdeventFree();
+    void FdeventFree();
     bool FdeventRegister(int fd, HandleFunc* hf, void* ctx);
     bool FdeventUnregister(int fd);
     int  FdeventGetRevent(int index);
@@ -81,7 +82,7 @@ private:
 
     Fdnode** fdarray;//nodes array
     IOStrategy* io_method;
-    int max_fd;
+    int max_size;
 };
 
 }

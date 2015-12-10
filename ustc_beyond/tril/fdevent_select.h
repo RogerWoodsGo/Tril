@@ -10,6 +10,7 @@ namespace tril {
 class Select:public IOStrategy {
 public:
     bool EventInit();
+    void EventFree();
     bool EventSet(int fd, int revent);
     bool EventReset();
     bool EventDel(int fd);

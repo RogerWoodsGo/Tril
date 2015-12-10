@@ -1,5 +1,6 @@
 #include "fdevent_epoll.h"
 #include <string.h>
+#include <unistd.h>
 #include "fdevent.h"
 
 namespace ustc_beyond {
@@ -9,12 +10,15 @@ bool Epoll::EventSet(int fd, int revent) {
     struct epoll_event ep;
     memset(&ep, 0, sizeof(ep));
     int add = 0;
-
     ep.events = 0;
+
+    if(fd_set.find(fd) == fd_set.end()){
+        add = 1;
+        fd_set.insert(fd);
+    }
 
     if (revent & FDEVENT_IN)  ep.events |= EPOLLIN;
     if (revent & FDEVENT_OUT) ep.events |= EPOLLOUT;
-    if (revent & FDEVENT_NVAL) add = 1;
 
     /**
      *
@@ -36,25 +40,43 @@ bool Epoll::EventSet(int fd, int revent) {
     return fd;
 }
 
-bool Epoll::EventReset() {
+bool Epoll::EventDel(int fd) {
+	struct epoll_event ep;
+
+	memset(&ep, 0, sizeof(ep));
+
+	ep.data.fd = fd;
+	ep.data.ptr = NULL;
+
+	if (0 != epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, &ep)) {
+		return false;
+	}
     return true;
 }
 
-bool Epoll::EventDel(int fd) {
-    return true;
-}
 int  Epoll::EventGetHappened(int index) {
-    return 0;
+	size_t i;
+
+    i = (index < 0) ? 0 : index + 1;
+
+    return ep_events[i].data.fd;
 }
+
 int Epoll::EventPoll(int timeout_ms) {
-    return 0;
+    return epoll_wait(epoll_fd, ep_events, FDSIZE, timeout_ms);
 }
+
 bool Epoll::EventInit() {
-    if(-1 == (epoll_fd = epoll_create(1024))) {
+    if(-1 == (epoll_fd = epoll_create(FDSIZE))) {
         return false;
     };
     return true;
 }
+
+void Epoll::EventFree() {
+    close(epoll_fd);
+}
+
 }
 }
 

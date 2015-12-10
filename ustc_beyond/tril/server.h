@@ -1,6 +1,5 @@
 #ifndef SERVER_H_
 #define SERVER_H_
-#include "server.h"
 
 #include "configure.h"
 #include "utils.h"
@@ -10,6 +9,8 @@
 namespace ustc_beyond {
 namespace tril {
 //Sigleton
+class Network;
+class Fdevent;
 class Server {
 public:
     static Server* GetInstance() {
@@ -17,18 +18,30 @@ public:
             return new Server();
         }
     };
-    bool ServerInit(int argc, char* argv[]);
-    bool NetworkInit();
-    bool WritePidfile();
+
     void ServerFree(){
         delete config;
     };
-    void Daemonize();
-    void Start();
-    std::string GetConfigValue(const std::string& key);
+    
+    inline Fdevent* GetFdevent(){
+        return fdevent;
+    };
+
+    inline Network* GetNetwork(){
+        return network;
+    };
+
     ~Server() {
         delete config;
     };
+
+    bool ServerInit(int argc, char* argv[]);
+    bool NetworkInit();
+    bool WritePidfile();
+    void Daemonize();
+    void Start();
+    std::string GetConfigValue(const std::string& key);
+    Logging log;
 private:
     Server() {
         config = new Configure();
@@ -36,13 +49,15 @@ private:
     static void sigHandler(int sig_num);
     int MakeWorker(int worker); 
 
-    Logging log;
     Configure* config;
+    Fdevent* fdevent;
+    Network* network;
     map<string, string> config_kv;
     static Server* instance_;
     static bool srv_shutdown;
     static bool graceful_shutdown;
 };
+
 }
 }
 #endif

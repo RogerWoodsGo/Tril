@@ -8,6 +8,9 @@ bool Select::EventInit() {
     return true;
 }
 
+void Select::EventFree() {
+}
+
 bool Select::EventSet(int fd, int revent) {
 
     if (revent & FDEVENT_IN) {

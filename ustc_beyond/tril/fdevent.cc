@@ -2,6 +2,7 @@
 #include "fdevent_epoll.h"
 #include "fdevent_poll.h"
 #include "fdevent_select.h"
+#include "handlefunc.h"
 
 namespace ustc_beyond {
 namespace tril {
@@ -17,7 +18,7 @@ bool Fdevent::FdnodeFree() {
 Fdevent* Fdevent::FdeventInit(int max_size, fdevent_handler_t type) {
     Fdevent* ev = new Fdevent();
     ev->fdarray = new Fdnode*[max_size];
-    max_fd = -1;
+    max_size = max_size;
     switch(type) {
     case FDEVENT_HANDLER_SELECT:
         ev->io_method = new Select();
@@ -35,8 +36,9 @@ Fdevent* Fdevent::FdeventInit(int max_size, fdevent_handler_t type) {
     return ev;
 }
 
-bool Fdevent::FdeventFree() {
-    return true;
+void Fdevent::FdeventFree() {
+    delete fdarray; 
+    delete io_method;
 }
 
 bool Fdevent::FdeventRegister(int fd, HandleFunc* hf, void* ctx) {

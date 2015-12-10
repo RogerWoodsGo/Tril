@@ -7,6 +7,9 @@ bool Poll::EventInit() {
     return true;
 }
 
+void Poll::EventFree() {
+}
+
 bool Poll::EventSet(int fd, int revent) {
     return true;
 }
@@ -29,6 +32,4 @@ int Poll::EventPoll(int timeout_ms) {
 
 }
 }
-
-
 
