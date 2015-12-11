@@ -5,8 +5,10 @@
 #include <netinet/tcp.h>
 #include <netdb.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 #include <string>
+#include <iostream>
 #include "iostream"
 #include "fdevent.h"
 #include "connection.h"
@@ -16,6 +18,7 @@ namespace tril {
 
 handler_t NetworkHandleFunc::FdeventHandler(Server* srv, void* ctx, int revents) {
 	Connection *con;
+    Network* net = (Network*)ctx;
 	int loops = 0;
 
 
@@ -27,8 +30,8 @@ handler_t NetworkHandleFunc::FdeventHandler(Server* srv, void* ctx, int revents)
 	/* accept()s at most 100 connections directly
 	 *
 	 * we jump out after 100 to give the waiting connections a chance */
-	for (loops = 0; loops < 100 && NULL != (con = ConnectionAccept(srv, srv->GetNetwork()->GetSockFd())); loops++) {
-		handler_t r;
+	for (loops = 0; loops < 100 && NULL != (con = ConnectionAccept(net, srv->GetNetwork()->GetSockFd())); loops++) {
+//		handler_t r;
 
 //		connection_state_machine(srv, con);
 
@@ -42,7 +45,7 @@ bool Network::NetworkInit(Server* srv) {
     
     network_handle_func = new NetworkHandleFunc();
     sock_fd = -1;
-
+    
     std::string host_port = srv->GetConfigValue("port");
     std::string host_name = srv->GetConfigValue("hostname");
 
@@ -58,26 +61,23 @@ bool Network::NetworkInit(Server* srv) {
     }
 
 
-
     int val;
-    char *sp;
-    const char *host;
     sock_addr addr;
     sock_addr_in addr_in;
     sock_addr_in6 addr_in6;
-    socklen_t addr_len;
+    socklen_t addr_len = sizeof(struct sockaddr_in);
 
 
     if (host_name[0] == '[' && host_name[host_name.size() - 1]  == ']') {
         use_ipv6 = 1;
     }
 
-
     if (use_ipv6) {
         addr.sa_family = AF_INET6;
 
         if (-1 == (sock_fd = socket(addr.sa_family, SOCK_STREAM, IPPROTO_TCP))) {
             srv->log.Log(kError, "CreateSocketFailed");
+            return false;
         }
         use_ipv6 = 1;
     }
@@ -86,6 +86,7 @@ bool Network::NetworkInit(Server* srv) {
         addr.sa_family = AF_INET;
         if (-1 == (sock_fd = socket(addr.sa_family, SOCK_STREAM, IPPROTO_TCP))) {
             srv->log.Log(kError, "CreateSocketFailed");
+            return false;
         }
     }
 
@@ -96,6 +97,7 @@ bool Network::NetworkInit(Server* srv) {
     val = 1;
     if (setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)) < 0) {
         srv->log.Log(kError, "SetSocketOptionFailed");
+        return false;
     }
 
     switch(addr.sa_family) {
@@ -109,6 +111,7 @@ bool Network::NetworkInit(Server* srv) {
             val = 1;
             if (-1 == setsockopt(sock_fd, IPPROTO_IPV6, IPV6_V6ONLY, &val, sizeof(val))) {
                 srv->log.Log(kError, "Set IPV6 option failed");
+                return false;
             }
 
             memset(&hints, 0, sizeof(hints));
@@ -117,8 +120,9 @@ bool Network::NetworkInit(Server* srv) {
             hints.ai_socktype = SOCK_STREAM;
             hints.ai_protocol = IPPROTO_TCP;
 
-            if (0 != (r = getaddrinfo(host, NULL, &hints, &res))) {
+            if (0 != (r = getaddrinfo(host_name.c_str(), NULL, &hints, &res))) {
                 srv->log.Log(kError, "Getaddrinfo error %s", gai_strerror(r));
+                return false;
             }
 
             memcpy(&(addr_in6.sin6_addr.s6_addr), res->ai_addr, res->ai_addrlen);
@@ -134,17 +138,21 @@ bool Network::NetworkInit(Server* srv) {
         if (host_name == "") {
             addr_in.sin_addr.s_addr = htonl(INADDR_ANY);
         } else {
-            struct hostent *he;
-            if (NULL == (he = gethostbyname(host))) {
-                srv->log.Log(kError, "Getaddrinfo error %s", h_errno);
+            struct hostent *he = gethostbyname(host_name.c_str());
+
+            if (NULL == he) {
+                srv->log.Log(kError, "Getaddrinfo error");
+                return false;
             }
 
             if (he->h_addrtype != AF_INET) {
                 srv->log.Log(kError, "Type not AF_INET");
+                return false;
             }
 
             if (he->h_length != sizeof(struct in_addr)) {
                 srv->log.Log(kError, "Addr length error");
+                return false;
             }
 
             memcpy(&(addr_in.sin_addr.s_addr), he->h_addr_list[0], he->h_length);
@@ -165,11 +173,13 @@ bool Network::NetworkInit(Server* srv) {
         memcpy(&(addr), &(addr_in), sizeof(sock_addr)) ;
     }
     if (0 != bind(sock_fd, (struct sockaddr *) &(addr), addr_len)) {
-        srv->log.Log(kError, "Bind host %s,port %d error", host, port);
+        srv->log.Log(kError, "Bind host %s,port %d error", host_name.c_str(), port);
+        return false;
     }
 
     if (-1 == listen(sock_fd, 128 * 8)) {
         srv->log.Log(kError, "Listen failed");
+        return false;
     }
 
     return true;
@@ -187,6 +197,7 @@ bool Network::NetworkRegisterFdevents(Server* srv) {
         srv->log.Log(kError, "Set event error");
         return false;
     }            
+    return true;
 }
 
 
@@ -194,9 +205,10 @@ bool Network::NetworkClose() {
     delete network_handle_func; 
     //we should delete connections here?
     //delete con; 
+    return true;
 }
 
-Connection * NetworkHandleFunc::ConnectionAccept(Server* srv, int fd) {
+Connection * NetworkHandleFunc::ConnectionAccept(Network* net, int fd) {
 
 	int cnt;
 	sock_addr cnt_addr;
@@ -224,7 +236,7 @@ Connection * NetworkHandleFunc::ConnectionAccept(Server* srv, int fd) {
 			/* out of fds */
 			break;
 		default:
-            srv->log.Log(kError, "Accept failed");
+            break;
 		}
 		return NULL;
 	} else {
@@ -252,6 +264,7 @@ Connection * NetworkHandleFunc::ConnectionAccept(Server* srv, int fd) {
 			return NULL;
 		}
         */
+        std::cout << "Success" << std::endl;
 		return con;
 	}
 }

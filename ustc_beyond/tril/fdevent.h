@@ -33,7 +33,7 @@ class HandleFunc;
 
 class Fdnode {
 public:
-    Fdnode(int fd, int revent, HandleFunc* hf, void* ctx):fd(fd), revent(revent), hf(hf), ctx(ctx){};
+    Fdnode(int fd, int revent, HandleFunc* hf, void* ctx) : fd(fd), revent(revent), hf(hf), ctx(ctx){};
     ~Fdnode(){};
     inline int GetFd() {
         return fd;

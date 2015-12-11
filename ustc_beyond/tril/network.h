@@ -15,9 +15,10 @@ typedef struct sockaddr_in sock_addr_in;
 typedef struct sockaddr_in6 sock_addr_in6;
 
 class Connection;
+class Network;
 class NetworkHandleFunc:public HandleFunc {
     handler_t FdeventHandler(Server* srv, void* ctx, int revents);
-    Connection * ConnectionAccept(Server* srv, int fd);
+    Connection * ConnectionAccept(Network* srv, int fd);
 };
 
 class Network {

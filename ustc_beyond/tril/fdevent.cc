@@ -24,6 +24,7 @@ Fdevent* Fdevent::FdeventInit(int max_size, fdevent_handler_t type) {
         ev->io_method = new Select();
         break;
     case FDEVENT_HANDLER_LINUX_SYSEPOLL:
+        ev->io_method = new Epoll();
         break;
     case FDEVENT_HANDLER_POLL:
         break;
@@ -37,7 +38,7 @@ Fdevent* Fdevent::FdeventInit(int max_size, fdevent_handler_t type) {
 }
 
 void Fdevent::FdeventFree() {
-    delete fdarray; 
+    delete []fdarray; 
     delete io_method;
 }
 
@@ -56,11 +57,11 @@ int  Fdevent::FdeventGetRevent(int index) {
     return fdarray[index]->GetRevent();
 }
 
-inline HandleFunc*  Fdevent::FdeventGetHandleFunc(int fd) {
+HandleFunc*  Fdevent::FdeventGetHandleFunc(int fd) {
     return fdarray[fd]->GetHandleFunc();
 }
 
-inline void*  Fdevent::FdeventGetContext(int index) {
+void*  Fdevent::FdeventGetContext(int index) {
     return fdarray[index]->GetCtx();
 }
 

@@ -8,10 +8,16 @@
 #include <fstream>
 #include "utils.h"
 #include "fdevent.h"
+#include "network.h"
+#include "handlefunc.h"
 
 namespace ustc_beyond {
 namespace tril {
+
 bool Server::ServerInit(int argc, char* argv[]) {
+    config = new Configure();
+    fdevent = new Fdevent();
+    network = new Network();
     //Config get option
     if(!config->GetOption(argc, argv)) {
         std::cerr << "Get option Error" << std::endl;
@@ -25,12 +31,21 @@ bool Server::ServerInit(int argc, char* argv[]) {
     config_kv = config->GetKeyValue();
     std::cout << "Here is ok" << std::endl;
     log.Config(GetConfigValue("logfile"), LogLevel(StringToNumber<int>(GetConfigValue("loglevel"))));
-    if(!NetworkInit()) {
+
+    if(!network->NetworkInit(this)) {
         log.Log(kError, "Network init error");
+        return false;
     }
     return true;
     //Daemonize();
 }
+
+bool Server::ServerFree() {
+    delete config;
+    delete fdevent;
+    delete network;
+    return true;
+};
 
 void Server::Daemonize() {
 #ifdef SIGTTOU
@@ -84,12 +99,12 @@ void Server::sigHandler(int sig_num) {
 }
 
 
-bool Server::WritePidfile(){
+bool Server::WritePidfile() {
     string pidfile = GetConfigValue("pidfile");
 
     fstream of;
     of.open(pidfile.c_str(), fstream::out);
-    if(!of.is_open()){
+    if(!of.is_open()) {
         log.Log(kError, "Open pid file error");
         return false;
     }
@@ -109,7 +124,7 @@ void Server::Start() {
     if(config->IsDaemonize())
         Daemonize();
     //write pid file
-    if(!WritePidfile()){
+    if(!WritePidfile()) {
         log.Log(kError, "WritePidfile Error");
         return;
     }
@@ -133,13 +148,55 @@ void Server::Start() {
         return;
     }
 
+    if(!fdevent->FdeventInit(MAXFD, FDEVENT_HANDLER_SELECT)) {
+        log.Log(kError, "Event init error");
+        fdevent->FdeventFree();
+        //ServerFree();
+        return;
+    }
+
+    if(!network->NetworkRegisterFdevents(this)) {
+        log.Log(kError, "Event init error");
+        //ServerFree();
+        return;
+    }
+
     //start outer loop
+    int n = -1;
     while(!Server::srv_shutdown) {
+        if((n = fdevent->FdeventEventPoll(POLL_TIMEOUT)) > 0 ) {
+            int fd_ndx = -1;
+            int revents;
+
+            do {
+                HandleFunc* handler;
+                void *context;
+                handler_t r;
+
+                fd_ndx  = fdevent->FdeventEventGetHappened(fd_ndx);
+                if (-1 == fd_ndx) break; /* not all fdevent handlers know how many fds got an event */
+
+                revents = fdevent->FdeventGetRevent(fd_ndx);
+                handler = fdevent->FdeventGetHandleFunc(fd_ndx);
+                context = fdevent->FdeventGetContext(fd_ndx);
+                r = handler->FdeventHandler(this, context, revents);
+
+                switch(r) {
+                case HANDLER_FINISHED:
+                case HANDLER_GO_ON:
+                    log.Log(kInfo, "Event handle finished");
+                    break;
+                default:
+                    log.Log(kInfo, "Event handle error");
+                    break;
+                }
+            } while(--n > 0);
+
+            }
         std::cout << "this is thread" << getpid() << std::endl;
         sleep(2);
     }
 //    if(!this->is_freed)
-//    ServerFree();
 }
 
 int Server::MakeWorker(int worker) {
@@ -199,9 +256,6 @@ int Server::MakeWorker(int worker) {
     return 1;
 }
 
-bool Server::NetworkInit() {
-    return true;
-}
 
 Server* Server::instance_ = NULL;
 bool Server::srv_shutdown = false;
@@ -209,6 +263,9 @@ bool Server::graceful_shutdown = false;
 
 }
 }
+
+
+
 
 
 

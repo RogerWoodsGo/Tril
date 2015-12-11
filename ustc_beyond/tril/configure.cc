@@ -88,23 +88,23 @@ bool Configure::LoadConfig() {
                 break;
             }
             if(trim(vt[0]) == "logfile")
-                config_kv["logfile"] = vt[1];
+                config_kv["logfile"] = trim(vt[1]);
             else if(trim(vt[0]) == "port")
-                config_kv["port"] = vt[1];
+                config_kv["port"] = trim(vt[1]);
             else if(trim(vt[0]) == "hostname")
-                config_kv["hostname"] = vt[1];
+                config_kv["hostname"] = trim(vt[1]);
             else if(trim(vt[0]) == "ipaddr")
-                config_kv["ipaddr"] = vt[1];
+                config_kv["ipaddr"] = trim(vt[1]);
             else if(trim(vt[0]) == "htroot")
-                config_kv["htroot"] = vt[1];
+                config_kv["htroot"] = trim(vt[1]);
             else if(trim(vt[0]) == "debug")
-                config_kv["debug"] = vt[1];
+                config_kv["debug"] = trim(vt[1]);
             else if(trim(vt[0]) == "pidfile")
-                config_kv["pidfile"] = vt[1];
+                config_kv["pidfile"] = trim(vt[1]);
             else if(trim(vt[0]) == "worker")
-                config_kv["worker"] = vt[1];
+                config_kv["worker"] = trim(vt[1]);
             else if(trim(vt[0]) == "loglevel")
-                config_kv["loglevel"] = vt[1];
+                config_kv["loglevel"] = trim(vt[1]);
 
         }
     }//end while

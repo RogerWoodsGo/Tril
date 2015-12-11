@@ -11,6 +11,8 @@ namespace tril {
 //Sigleton
 class Network;
 class Fdevent;
+const int MAXFD  = 1024;
+const int POLL_TIMEOUT = 10000;
 class Server {
 public:
     static Server* GetInstance() {
@@ -19,10 +21,7 @@ public:
         }
     };
 
-    void ServerFree(){
-        delete config;
-    };
-    
+        
     inline Fdevent* GetFdevent(){
         return fdevent;
     };
@@ -32,19 +31,18 @@ public:
     };
 
     ~Server() {
-        delete config;
     };
 
     bool ServerInit(int argc, char* argv[]);
-    bool NetworkInit();
+    bool ServerFree();
     bool WritePidfile();
     void Daemonize();
     void Start();
     std::string GetConfigValue(const std::string& key);
     Logging log;
+
 private:
     Server() {
-        config = new Configure();
     };
     static void sigHandler(int sig_num);
     int MakeWorker(int worker); 
