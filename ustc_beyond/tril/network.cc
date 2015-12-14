@@ -9,12 +9,16 @@
 #include <string.h>
 #include <string>
 #include <iostream>
-#include "iostream"
 #include "fdevent.h"
 #include "connection.h"
 
 namespace ustc_beyond {
 namespace tril {
+
+handler_t ConnectionHandleFdevent::FdeventHandler(Server* srv, void* ctx, int revents){
+    std::cout << "this is called" << std::endl;
+     return HANDLER_FINISHED;
+}
 
 handler_t NetworkHandleFunc::FdeventHandler(Server* srv, void* ctx, int revents) {
 	Connection *con;
@@ -30,7 +34,7 @@ handler_t NetworkHandleFunc::FdeventHandler(Server* srv, void* ctx, int revents)
 	/* accept()s at most 100 connections directly
 	 *
 	 * we jump out after 100 to give the waiting connections a chance */
-	for (loops = 0; loops < 100 && NULL != (con = ConnectionAccept(net, srv->GetNetwork()->GetSockFd())); loops++) {
+	for (loops = 0; loops < 100 && NULL != (con = ConnectionAccept(srv)); loops++) {
 //		handler_t r;
 
 //		connection_state_machine(srv, con);
@@ -44,10 +48,11 @@ bool Network::NetworkInit(Server* srv) {
     //HandleFunc* handler_func = NetworkCreateHandleFunc();
     
     network_handle_func = new NetworkHandleFunc();
+    connect_handle_func = new ConnectionHandleFdevent();
     sock_fd = -1;
     
-    std::string host_port = srv->GetConfigValue("port");
-    std::string host_name = srv->GetConfigValue("hostname");
+    std::string host_port = srv->GetConfig()->GetConfigValue("port");
+    std::string host_name = srv->GetConfig()->GetConfigValue("hostname");
 
     unsigned int port = StringToNumber<int>(host_port);
     if(port == 0) {
@@ -188,7 +193,8 @@ bool Network::NetworkInit(Server* srv) {
 
 bool Network::NetworkRegisterFdevents(Server* srv) {
     Fdevent* ev = srv->GetFdevent();  
-    if(!ev->FdeventRegister(sock_fd, network_handle_func, NULL)){
+
+    if(!ev->FdeventRegister(sock_fd, network_handle_func, this)){
         srv->log.Log(kError, "Register event error");
         return false;
     }            
@@ -200,19 +206,27 @@ bool Network::NetworkRegisterFdevents(Server* srv) {
     return true;
 }
 
+Connection* Network::GetNewConnection() {
+    Connection* con = new Connection();
+    con->ConnectionReset();
+    return con;
+}
 
 bool Network::NetworkClose() {
     delete network_handle_func; 
+    delete connect_handle_func;
     //we should delete connections here?
     //delete con; 
     return true;
 }
 
-Connection * NetworkHandleFunc::ConnectionAccept(Network* net, int fd) {
+Connection * NetworkHandleFunc::ConnectionAccept(Server* srv) {
 
 	int cnt;
 	sock_addr cnt_addr;
 	socklen_t cnt_len;
+    Fdevent* ev = srv->GetFdevent();
+    Network* net = srv->GetNetwork();
 	/* accept it and register the fd */
 
 	/**
@@ -224,7 +238,7 @@ Connection * NetworkHandleFunc::ConnectionAccept(Network* net, int fd) {
 
 	cnt_len = sizeof(cnt_addr);
 
-	if (-1 == (cnt = accept(fd, (struct sockaddr *) &cnt_addr, &cnt_len))) {
+	if (-1 == (cnt = accept(net->GetSockFd(), (struct sockaddr *) &cnt_addr, &cnt_len))) {
 		switch (errno) {
 		case EAGAIN:
 		case EINTR:
@@ -240,9 +254,12 @@ Connection * NetworkHandleFunc::ConnectionAccept(Network* net, int fd) {
 		}
 		return NULL;
 	} else {
-		Connection *con;
+		Connection *con =  net->GetNewConnection();
+        con->ConnectionSetFd(net->GetSockFd());
 
-
+		ev->FdeventRegister(net->GetSockFd(), net->GetHandleFunc(), con);
+		con->ConnectionSetState(CON_STATE_REQUEST_START);
+        
 		/* ok, we have the connection, register it */
 
 //		con = connections_get_new_connection(net);
@@ -250,9 +267,7 @@ Connection * NetworkHandleFunc::ConnectionAccept(Network* net, int fd) {
 /*		con->fd = cnt;
 		con->fde_ndx = -1;
 
-		fdevent_register(srv->ev, con->fd, connection_handle_fdevent, con);
 
-		connection_set_state(srv, con, CON_STATE_REQUEST_START);
 
 		con->connection_start = srv->cur_ts;
 		con->dst_addr = cnt_addr;
@@ -264,6 +279,7 @@ Connection * NetworkHandleFunc::ConnectionAccept(Network* net, int fd) {
 			return NULL;
 		}
         */
+
         std::cout << "Success" << std::endl;
 		return con;
 	}

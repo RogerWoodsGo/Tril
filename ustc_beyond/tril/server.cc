@@ -28,9 +28,8 @@ bool Server::ServerInit(int argc, char* argv[]) {
         std::cerr << "Load Configfile Error" << std::endl;
         return false;
     };
-    config_kv = config->GetKeyValue();
     std::cout << "Here is ok" << std::endl;
-    log.Config(GetConfigValue("logfile"), LogLevel(StringToNumber<int>(GetConfigValue("loglevel"))));
+    log.Config(config->GetConfigValue("logfile"), LogLevel(StringToNumber<int>(config->GetConfigValue("loglevel"))));
 
     if(!network->NetworkInit(this)) {
         log.Log(kError, "Network init error");
@@ -70,14 +69,7 @@ void Server::Daemonize() {
 }
 
 
-std::string Server::GetConfigValue(const std::string& key) {
-    if(this->config_kv.find(key) != this->config_kv.end()) {
-        return this->config_kv[key];
-    }
-    else
-        return string("");
 
-}
 
 void Server::sigHandler(int sig_num) {
     switch (sig_num) {
@@ -100,7 +92,7 @@ void Server::sigHandler(int sig_num) {
 
 
 bool Server::WritePidfile() {
-    string pidfile = GetConfigValue("pidfile");
+    string pidfile = config->GetConfigValue("pidfile");
 
     fstream of;
     of.open(pidfile.c_str(), fstream::out);
@@ -129,7 +121,7 @@ void Server::Start() {
         return;
     }
     //fork worker
-    string worker_str = GetConfigValue("worker");
+    string worker_str = config->GetConfigValue("worker");
     log.Log(kInfo, "worker is %s", worker_str.c_str());
     if(!(worker = StringToNumber<int>(worker_str))) {
         log.Log(kError, "There is no worker");
@@ -168,13 +160,14 @@ void Server::Start() {
             int fd_ndx = -1;
             int revents;
 
+            std::cout << "this is thread " << getpid() << "total event" << n << std::endl;
             do {
                 HandleFunc* handler;
                 void *context;
                 handler_t r;
 
                 fd_ndx  = fdevent->FdeventEventGetHappened(fd_ndx);
-                if (-1 == fd_ndx) break; /* not all fdevent handlers know how many fds got an event */
+                if (-1 == fd_ndx) break;
 
                 revents = fdevent->FdeventGetRevent(fd_ndx);
                 handler = fdevent->FdeventGetHandleFunc(fd_ndx);
@@ -192,8 +185,7 @@ void Server::Start() {
                 }
             } while(--n > 0);
 
-            }
-        std::cout << "this is thread" << getpid() << std::endl;
+        }
         sleep(2);
     }
 //    if(!this->is_freed)
@@ -263,6 +255,7 @@ bool Server::graceful_shutdown = false;
 
 }
 }
+
 
 
 

@@ -9,7 +9,7 @@
 namespace ustc_beyond {
 namespace tril {
 
-typedef struct opt{
+typedef struct opt {
     char* config_file;
     char* help;
     int daemonized;
@@ -24,19 +24,23 @@ const option long_opts[] = {
 
 class Configure {
 public:
-    Configure(){
+    Configure() {
         this->SetDefault();
     };
-    ~Configure(){};
+    ~Configure() {};
     bool GetOption(int argc, char* argv[]);
     bool LoadConfig();
-    bool IsDaemonize(){
+    void Usage();
+    std::string GetConfigValue(const std::string& key);
+
+    bool IsDaemonize() {
         return option_.daemonized;
     };
-    inline std::map<std::string, std::string> GetKeyValue(){
+
+    inline std::map<std::string, std::string> GetKeyValue() {
         return config_kv;
     }
-    void Usage();
+
 private:
     void SetDefault();
 
@@ -46,5 +50,6 @@ private:
 }
 }
 #endif
+
 
 

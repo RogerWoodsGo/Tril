@@ -3,6 +3,7 @@
 #include <list>
 #include "setting.h"
 #include "iostrategy.h"
+#include <iostream>
 
 namespace ustc_beyond {
 namespace tril {
@@ -33,7 +34,13 @@ class HandleFunc;
 
 class Fdnode {
 public:
-    Fdnode(int fd, int revent, HandleFunc* hf, void* ctx) : fd(fd), revent(revent), hf(hf), ctx(ctx){};
+    Fdnode(){};
+    Fdnode(int fd, int revent, HandleFunc* hf, void* ctx) {
+            this->fd = fd;
+            this->revent = revent;
+            this->hf = hf;
+            this->ctx = ctx;
+    };
     ~Fdnode(){};
     inline int GetFd() {
         return fd;
@@ -62,7 +69,8 @@ class Fdevent {
 public:
     Fdevent(){};
     ~Fdevent(){};
-    Fdevent* FdeventInit(int max_size, fdevent_handler_t type);
+    bool FdeventInit(int max_size, fdevent_handler_t type);
+    bool FdnodeFree();
     void FdeventFree();
     bool FdeventRegister(int fd, HandleFunc* hf, void* ctx);
     bool FdeventUnregister(int fd);
@@ -77,9 +85,6 @@ public:
     int FdeventEventPoll(int timeout_ms);
 
 private:
-    Fdnode* FdnodeInit(int fd, HandleFunc* hf, void* ctx);
-    bool FdnodeFree();
-
     Fdnode** fdarray;//nodes array
     IOStrategy* io_method;
     int max_size;

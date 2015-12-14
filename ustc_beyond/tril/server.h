@@ -8,11 +8,13 @@
 
 namespace ustc_beyond {
 namespace tril {
-//Sigleton
+
 class Network;
 class Fdevent;
 const int MAXFD  = 1024;
-const int POLL_TIMEOUT = 10000;
+const int POLL_TIMEOUT = 10000000;
+
+//Sigleton
 class Server {
 public:
     static Server* GetInstance() {
@@ -21,6 +23,9 @@ public:
         }
     };
 
+    inline Configure* GetConfig(){
+        return config;
+    };
         
     inline Fdevent* GetFdevent(){
         return fdevent;
@@ -38,7 +43,7 @@ public:
     bool WritePidfile();
     void Daemonize();
     void Start();
-    std::string GetConfigValue(const std::string& key);
+    //std::string GetConfigValue(const std::string& key);
     Logging log;
 
 private:
@@ -50,7 +55,6 @@ private:
     Configure* config;
     Fdevent* fdevent;
     Network* network;
-    map<string, string> config_kv;
     static Server* instance_;
     static bool srv_shutdown;
     static bool graceful_shutdown;

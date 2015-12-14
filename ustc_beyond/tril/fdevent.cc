@@ -3,28 +3,27 @@
 #include "fdevent_poll.h"
 #include "fdevent_select.h"
 #include "handlefunc.h"
+#include <iostream>
 
 namespace ustc_beyond {
 namespace tril {
-Fdnode* Fdevent::FdnodeInit(int fd, HandleFunc* hf, void* ctx) {
-    Fdnode* node = new Fdnode(fd, 0, hf, ctx);
-    return node;
-}
 
 bool Fdevent::FdnodeFree() {
     return true;
 }
 
-Fdevent* Fdevent::FdeventInit(int max_size, fdevent_handler_t type) {
-    Fdevent* ev = new Fdevent();
-    ev->fdarray = new Fdnode*[max_size];
-    max_size = max_size;
+bool Fdevent::FdeventInit(int max_size, fdevent_handler_t type) {
+    fdarray = new Fdnode* [max_size];
+    if(fdarray == NULL){
+        return false;
+    }
+    this->max_size = max_size;
     switch(type) {
     case FDEVENT_HANDLER_SELECT:
-        ev->io_method = new Select();
+        io_method = new Select();
         break;
     case FDEVENT_HANDLER_LINUX_SYSEPOLL:
-        ev->io_method = new Epoll();
+        io_method = new Epoll();
         break;
     case FDEVENT_HANDLER_POLL:
         break;
@@ -34,7 +33,7 @@ Fdevent* Fdevent::FdeventInit(int max_size, fdevent_handler_t type) {
     default:
         break;
     }
-    return ev;
+    return true;
 }
 
 void Fdevent::FdeventFree() {
@@ -43,7 +42,11 @@ void Fdevent::FdeventFree() {
 }
 
 bool Fdevent::FdeventRegister(int fd, HandleFunc* hf, void* ctx) {
-    fdarray[fd] = FdnodeInit(fd, hf, ctx);
+    fdarray[fd] = new Fdnode(fd, FDEVENT_NVAL, hf, ctx);
+    if(fdarray[fd] == NULL){
+        return false;
+    }
+    
     return true;
 }
 

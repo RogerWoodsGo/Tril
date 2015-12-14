@@ -15,6 +15,15 @@ void Configure::Usage() {
     std::cout << "-h|-?|--help Show the help information" << std::endl;
 }
 
+std::string Configure::GetConfigValue(const std::string& key) {
+    if(this->config_kv.find(key) != this->config_kv.end()) {
+        return this->config_kv[key];
+    }
+    else
+        return std::string("");
+
+}
+
 bool Configure::GetOption(int argc, char* argv[]) {
     int opt = 0, options_index = 0;
 
