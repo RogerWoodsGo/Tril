@@ -26,7 +26,7 @@ public:
     int ConnectionGenerateResponse();
     bool ConnectionWriteToFd();
     bool ConnectionClose();
-    bool ConnectionStateMachine();
+    bool ConnectionStateMachine(Server* srv);
 
     inline void ConnectionSetFd(int fd) {
         this->fd = fd;

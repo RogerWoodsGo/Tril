@@ -37,7 +37,7 @@ handler_t NetworkHandleFunc::FdeventHandler(Server* srv, void* ctx, int revents)
 	for (loops = 0; loops < 100 && NULL != (con = ConnectionAccept(srv)); loops++) {
 //		handler_t r;
 
-//		connection_state_machine(srv, con);
+		con->ConnectionStateMachine(srv);
 
 	}
 	return HANDLER_GO_ON;
@@ -255,11 +255,12 @@ Connection * NetworkHandleFunc::ConnectionAccept(Server* srv) {
 		return NULL;
 	} else {
 		Connection *con =  net->GetNewConnection();
-        con->ConnectionSetFd(net->GetSockFd());
+        con->ConnectionSetFd(cnt);
 
-		ev->FdeventRegister(net->GetSockFd(), net->GetHandleFunc(), con);
+		ev->FdeventRegister(cnt, net->GetHandleFunc(), con);
 		con->ConnectionSetState(CON_STATE_REQUEST_START);
         
+        std::cout << "connt fd" << cnt << std::endl;
 		/* ok, we have the connection, register it */
 
 //		con = connections_get_new_connection(net);

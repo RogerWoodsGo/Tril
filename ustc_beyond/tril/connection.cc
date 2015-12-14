@@ -11,6 +11,7 @@
 #include "log.h"
 #include "request.h"
 #include "response.h"
+#include "fdevent.h"
 
 
 namespace ustc_beyond {
@@ -48,8 +49,10 @@ bool Connection::ConnectionClose() {
     return true;
 }
 
-bool Connection::ConnectionStateMachine() {
+bool Connection::ConnectionStateMachine(Server* srv) {
     int done = 0, r;
+    Fdevent* ev = srv->GetFdevent();
+
 
     while (done == 0) {
         size_t ostate = this->state;
@@ -135,6 +138,7 @@ bool Connection::ConnectionStateMachine() {
         if (done == -1) {
             done = 0;
         } else if (ostate == this->state) {
+            std::cout << "read set" << std::endl; 
             done = 1;
         }
     }
@@ -143,7 +147,9 @@ bool Connection::ConnectionStateMachine() {
     case CON_STATE_READ_POST:
     case CON_STATE_READ:
     case CON_STATE_CLOSE:
-        //fdevent_event_set(srv->ev, &(con->fde_ndx), con->fd, FDEVENT_IN);
+        ev->FdeventEventReset();
+        ev->FdeventEventSet(this->fd, FDEVENT_IN);
+        std::cout << "read fd"<< fd << std::endl; 
         break;
     case CON_STATE_WRITE:
         /* request write-fdevent only if we really need it

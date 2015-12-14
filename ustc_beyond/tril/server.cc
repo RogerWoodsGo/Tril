@@ -177,7 +177,7 @@ void Server::Start() {
                 switch(r) {
                 case HANDLER_FINISHED:
                 case HANDLER_GO_ON:
-                    log.Log(kInfo, "Event handle finished");
+                    log.Log(kInfo, "Event handle go on");
                     break;
                 default:
                     log.Log(kInfo, "Event handle error");
