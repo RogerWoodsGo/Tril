@@ -83,6 +83,7 @@ public:
     bool FdeventEventDel(int fd);
     int  FdeventEventGetHappened(int index);
     int FdeventEventPoll(int timeout_ms);
+    int FdeventFcntlSet(int fd);
 
 private:
     Fdnode** fdarray;//nodes array

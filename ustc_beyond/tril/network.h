@@ -31,19 +31,26 @@ public:
     bool NetworkInit(Server* srv);
     bool NetworkRegisterFdevents(Server* srv);
     Connection* GetNewConnection();
+    void DeleteConnection(Connection* con);
     bool NetworkClose();
 
     inline int GetSockFd() {
         return sock_fd;
     };
 
+    inline int GetIpv6() {
+        return use_ipv6;
+    };
+
+    
     inline HandleFunc* GetHandleFunc(){
         return connect_handle_func;
     };
+
 private:
     HandleFunc* network_handle_func;
     HandleFunc* connect_handle_func;
-    std::list<Connection*> con;
+    //std::list<Connection*> con;
     int sock_fd;
     int use_ipv6;
 

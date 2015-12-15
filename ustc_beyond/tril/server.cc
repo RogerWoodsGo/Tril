@@ -160,7 +160,6 @@ void Server::Start() {
             int fd_ndx = -1;
             int revents;
 
-            std::cout << "this is thread " << getpid() << "total event" << n << std::endl;
             do {
                 HandleFunc* handler;
                 void *context;
@@ -183,9 +182,11 @@ void Server::Start() {
                     log.Log(kInfo, "Event handle error");
                     break;
                 }
+                std::cout << "this is thread3 " << getpid() << "total event" << n << std::endl;
             } while(--n > 0);
 
         }
+        
         sleep(2);
     }
 //    if(!this->is_freed)

@@ -119,12 +119,17 @@ bool Connection::ConnectionStateMachine(Server* srv) {
              */
 
             break;
+        case CON_STATE_CONNECT:
+            break;
         case CON_STATE_READ_POST:
         case CON_STATE_READ:
-            ConnectionReadFromFd();
+            if(!ConnectionReadFromFd()){
+                srv->log.Log(kError, "read from fd error");
+            }
+            ConnectionSetState(CON_STATE_REQUEST_END);
             break;
         case CON_STATE_WRITE:
-            if (!this->write_queue.empty() && this->is_writable) {
+            if (!this->ConnectionWriteQueueEmpty() && this->is_writable) {
                 if (false == ConnectionWriteToFd()) {
                     ConnectionSetState(CON_STATE_ERROR);
                 }
@@ -138,7 +143,7 @@ bool Connection::ConnectionStateMachine(Server* srv) {
         if (done == -1) {
             done = 0;
         } else if (ostate == this->state) {
-            std::cout << "read set" << std::endl; 
+            //std::cout << "read set" << std::endl; 
             done = 1;
         }
     }

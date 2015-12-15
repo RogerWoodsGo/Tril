@@ -3,6 +3,8 @@
 #include "fdevent_poll.h"
 #include "fdevent_select.h"
 #include "handlefunc.h"
+#include <unistd.h>
+#include <fcntl.h>
 #include <iostream>
 
 namespace ustc_beyond {
@@ -14,7 +16,7 @@ bool Fdevent::FdnodeFree() {
 
 bool Fdevent::FdeventInit(int max_size, fdevent_handler_t type) {
     fdarray = new Fdnode* [max_size];
-    if(fdarray == NULL){
+    if(fdarray == NULL) {
         return false;
     }
     this->max_size = max_size;
@@ -37,16 +39,16 @@ bool Fdevent::FdeventInit(int max_size, fdevent_handler_t type) {
 }
 
 void Fdevent::FdeventFree() {
-    delete []fdarray; 
+    delete []fdarray;
     delete io_method;
 }
 
 bool Fdevent::FdeventRegister(int fd, HandleFunc* hf, void* ctx) {
     fdarray[fd] = new Fdnode(fd, FDEVENT_NVAL, hf, ctx);
-    if(fdarray[fd] == NULL){
+    if(fdarray[fd] == NULL) {
         return false;
     }
-    
+
     return true;
 }
 
@@ -101,9 +103,20 @@ int Fdevent::FdeventEventPoll(int timeout_ms) {
     return io_method->EventPoll(timeout_ms);
 }
 
+int Fdevent::FdeventFcntlSet(int fd) {
+    /* close fd on exec (cgi) */
+    fcntl(fd, F_SETFD, FD_CLOEXEC);
+    /*#endif
+    	if ((ev) && (ev->fcntl_set)) return ev->fcntl_set(ev, fd);
+    #ifdef O_NONBLOCK
+    */
+    return fcntl(fd, F_SETFL, O_NONBLOCK | O_RDWR);
+}
+
 
 }
 }
+
 
 
 

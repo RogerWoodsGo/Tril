@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,42 +16,89 @@
 namespace ustc_beyond {
 namespace tril {
 
-handler_t ConnectionHandleFdevent::FdeventHandler(Server* srv, void* ctx, int revents){
+handler_t ConnectionHandleFdevent::FdeventHandler(Server* srv, void* ctx, int revents) {
     std::cout << "this is called" << std::endl;
-     return HANDLER_FINISHED;
+    Connection *con = (Connection*)ctx;
+
+
+    if (revents & FDEVENT_IN) {
+        con->ConnectionSetReadable(true);
+    }
+    if (revents & FDEVENT_OUT) {
+        con->ConnectionSetWriteable(true);
+    }
+
+
+    if (revents & ~(FDEVENT_IN | FDEVENT_OUT)) {
+        /* looks like an error */
+
+        con->ConnectionSetState(CON_STATE_ERROR);
+
+    }
+
+    if (con->ConnectionGetState() == CON_STATE_READ ||
+            con->ConnectionGetState() == CON_STATE_READ_POST) {
+        if(!con->ConnectionReadFromFd()) {
+            srv->log.Log(kError, "read from fd error");
+        };
+    }
+
+    if (con->ConnectionGetState() == CON_STATE_WRITE &&
+            !con->ConnectionWriteQueueEmpty() &&
+            con->ConnectionGetWriteable()) {
+
+        if (!con->ConnectionWriteToFd()) {
+            con->ConnectionSetState(CON_STATE_ERROR);
+            srv->log.Log(kError, "handle write failed.");
+        }
+    }
+
+    if (con->ConnectionGetState() == CON_STATE_CLOSE) {
+        /* flush the read buffers */
+        int len;
+        char buf[1024];
+
+        len = read(con->ConnectionGetFd(), buf, sizeof(buf));
+        if (len == 0 || (len < 0 && errno != EAGAIN && errno != EINTR) ) {
+            //con->close_timeout_ts = srv->cur_ts - (HTTP_LINGER_TIMEOUT+1);
+        }
+    }
+    //enter the state machine
+    con->ConnectionStateMachine(srv);
+    return HANDLER_FINISHED;
 }
 
 handler_t NetworkHandleFunc::FdeventHandler(Server* srv, void* ctx, int revents) {
-	Connection *con;
-    Network* net = (Network*)ctx;
-	int loops = 0;
+    Connection *con;
+//    Network* net = (Network*)ctx;
+    int loops = 0;
 
 
-	if (0 == (revents & FDEVENT_IN)) {
+    if (0 == (revents & FDEVENT_IN)) {
         srv->log.Log(kError, "Get network event error");
-		return HANDLER_ERROR;
-	}
+        return HANDLER_ERROR;
+    }
 
-	/* accept()s at most 100 connections directly
-	 *
-	 * we jump out after 100 to give the waiting connections a chance */
-	for (loops = 0; loops < 100 && NULL != (con = ConnectionAccept(srv)); loops++) {
+    /* accept()s at most 100 connections directly
+     *
+     * we jump out after 100 to give the waiting connections a chance */
+    for (loops = 0; loops < 100 && NULL != (con = ConnectionAccept(srv)); loops++) {
 //		handler_t r;
 
-		con->ConnectionStateMachine(srv);
+        con->ConnectionStateMachine(srv);
 
-	}
-	return HANDLER_GO_ON;
+    }
+    return HANDLER_GO_ON;
 }
 
 bool Network::NetworkInit(Server* srv) {
 
     //HandleFunc* handler_func = NetworkCreateHandleFunc();
-    
+
     network_handle_func = new NetworkHandleFunc();
     connect_handle_func = new ConnectionHandleFdevent();
     sock_fd = -1;
-    
+
     std::string host_port = srv->GetConfig()->GetConfigValue("port");
     std::string host_name = srv->GetConfig()->GetConfigValue("hostname");
 
@@ -192,17 +240,23 @@ bool Network::NetworkInit(Server* srv) {
 }
 
 bool Network::NetworkRegisterFdevents(Server* srv) {
-    Fdevent* ev = srv->GetFdevent();  
+    Fdevent* ev = srv->GetFdevent();
 
-    if(!ev->FdeventRegister(sock_fd, network_handle_func, this)){
+    if(!ev->FdeventRegister(sock_fd, network_handle_func, this)) {
         srv->log.Log(kError, "Register event error");
         return false;
-    }            
+    }
 
-    if(!ev->FdeventEventSet(sock_fd, FDEVENT_IN)){
+    if(!ev->FdeventEventSet(sock_fd, FDEVENT_IN)) {
         srv->log.Log(kError, "Set event error");
         return false;
-    }            
+    }
+
+    if(-1 == ev->FdeventFcntlSet(sock_fd)) {
+        srv->log.Log(kError, "Set fcntl error");
+        return false;
+    }
+
     return true;
 }
 
@@ -212,81 +266,82 @@ Connection* Network::GetNewConnection() {
     return con;
 }
 
+void Network::DeleteConnection(Connection* con) {
+    delete con;
+}
+
 bool Network::NetworkClose() {
-    delete network_handle_func; 
+    delete network_handle_func;
     delete connect_handle_func;
     //we should delete connections here?
-    //delete con; 
+    //delete con;
     return true;
 }
 
 Connection * NetworkHandleFunc::ConnectionAccept(Server* srv) {
 
-	int cnt;
-	sock_addr cnt_addr;
-	socklen_t cnt_len;
+    int cnt;
+    sock_addr cnt_addr;
+    socklen_t cnt_len;
     Fdevent* ev = srv->GetFdevent();
     Network* net = srv->GetNetwork();
-	/* accept it and register the fd */
+    /* accept it and register the fd */
 
-	/**
-	 * check if we can still open a new connections
-	 *
-	 * see #1216
-	 */
+    /**
+     * check if we can still open a new connections
+     *
+     * see #1216
+     */
 
 
-	cnt_len = sizeof(cnt_addr);
+    cnt_len = sizeof(cnt_addr);
 
-	if (-1 == (cnt = accept(net->GetSockFd(), (struct sockaddr *) &cnt_addr, &cnt_len))) {
-		switch (errno) {
-		case EAGAIN:
-		case EINTR:
-			/* we were stopped _before_ we had a connection */
-		case ECONNABORTED: /* this is a FreeBSD thingy */
-			/* we were stopped _after_ we had a connection */
-			break;
-		case EMFILE:
-			/* out of fds */
-			break;
-		default:
+    if (-1 == (cnt = accept(net->GetSockFd(), (struct sockaddr *) &cnt_addr, &cnt_len))) {
+        switch (errno) {
+        case EAGAIN:
+        case EINTR:
+        /* we were stopped _before_ we had a connection */
+        case ECONNABORTED: /* this is a FreeBSD thingy */
+            /* we were stopped _after_ we had a connection */
             break;
-		}
-		return NULL;
-	} else {
-		Connection *con =  net->GetNewConnection();
+        case EMFILE:
+            /* out of fds */
+            break;
+        default:
+            break;
+        }
+        //std::cout << "connt fd" << cnt << std::endl;
+        return NULL;
+    } else {
+        Connection *con =  net->GetNewConnection();
         con->ConnectionSetFd(cnt);
 
-		ev->FdeventRegister(cnt, net->GetHandleFunc(), con);
-		con->ConnectionSetState(CON_STATE_REQUEST_START);
-        
+        ev->FdeventRegister(cnt, net->GetHandleFunc(), con);
+        con->ConnectionSetState(CON_STATE_CONNECT);
+
         std::cout << "connt fd" << cnt << std::endl;
-		/* ok, we have the connection, register it */
 
-//		con = connections_get_new_connection(net);
+        ev->FdeventFcntlSet(cnt);//set non block
+        /* ok, we have the connection, register it */
+        if(net->GetIpv6()) {
+            // parse ipv6 address
+            char buf[INET6_ADDRSTRLEN + 1];
+            inet_ntop(cnt_addr.sa_family, (const void *)&((sock_addr_in6*)&cnt_addr)->sin6_addr, buf, INET6_ADDRSTRLEN);
 
-/*		con->fd = cnt;
-		con->fde_ndx = -1;
-
-
-
-		con->connection_start = srv->cur_ts;
-		con->dst_addr = cnt_addr;
-		buffer_copy_string(con->dst_addr_buf, inet_ntop_cache_get_ip(srv, &(con->dst_addr)));
-		con->srv_socket = srv_socket;
-
-		if (-1 == (fdevent_fcntl_set(srv->ev, con->fd))) {
-			log_error_write(srv, __FILE__, __LINE__, "ss", "fcntl failed: ", strerror(errno));
-			return NULL;
-		}
-        */
+            con->ConnectionSetClientIp(std::string(buf));
+        }
+        else {
+            //    return &(((struct sockaddr_in*)sa)->sin_addr);
+            con->ConnectionSetClientIp(std::string(inet_ntoa(((sock_addr_in*)&cnt_addr)->sin_addr)));
+        }
 
         std::cout << "Success" << std::endl;
-		return con;
-	}
+        return con;
+    }
 }
 }
 }
+
 
 
 

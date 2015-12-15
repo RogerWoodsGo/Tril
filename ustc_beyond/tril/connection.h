@@ -64,8 +64,24 @@ public:
         this->state = sta;
     };
 
-    inline connection_state_t ConnectionGetState(connection_state_t sta) {
+    inline connection_state_t ConnectionGetState() {
         return state;
+    };
+
+    inline void ConnectionSetClientIp(const std::string& ip) {
+        this->cli_addr = ip;
+    };
+
+    inline std::string ConnectionGetClientIp() {
+        return this->cli_addr;
+    };
+
+    inline bool ConnectionWriteQueueEmpty() {
+        return this->write_queue.empty();
+    };
+
+    inline bool ConnectionReadQueueEmpty() {
+        return this->read_queue.empty();
     };
 
 private:
@@ -77,6 +93,7 @@ private:
     std::deque<std::string> read_queue;
     std::deque<std::string> write_queue;
     connection_state_t state;
+    std::string cli_addr;
     Request* request;
     Response* response;
 };
