@@ -5,8 +5,8 @@ namespace ustc_beyond {
 namespace tril {
 class Response {
 public:
-    void response_init();
-    void response_free();
+    void ResponseInit();
+    void ResponseFree();
 };
 
 }

@@ -20,21 +20,90 @@ namespace tril {
 
 bool Connection::ConnectionReset() {
     this->is_keepalived = 1;
-    this->is_writable = 1;
-    this->is_readable = 1;
+    this->is_writable = 0;
+    this->is_readable = 0;
     request = new Request();
-    request->request_init();
+    request->RequestInit();
     response = new Response();
-    response->response_init();
+    response->ResponseInit();
     return true;
 }
 
+
+void Connection::ConnectionAdjustQueue(std::deque<std::string> queue, std::string newdata) {
+    queue.clear();
+    queue.push_back(newdata);
+}
+
+std::string Connection::ConnectionMergeQueue(std::deque<std::string> queue) {
+    std::string res = "";
+    for(unsigned i = 0; i < queue.size(); i++) {
+        res += queue[i];
+    }
+    return res;
+}
+
 bool Connection::ConnectionReadFromFd() {
+    //read and detect \r\n\r\n
+    int len;
+    char buf[READ_BUFFER_SIZE] = {'\0'};
+    len = read(fd, buf, READ_BUFFER_SIZE);
+
+    std::cout <<fd << " read len is " << len << std::endl;
+    if (len < 0) {
+        ConnectionSetReadable(false);
+
+        ConnectionSetState(CON_STATE_ERROR);
+        if (errno == EINTR || errno == EAGAIN)
+            /* we have been interrupted before we could read */
+            //con->is_readable = 1;
+            return false;
+    } else if (len == 0) {
+        //con->is_readable = 0;
+        /* the other end close the connection -> KEEP-ALIVE */
+
+        /* pipelining */
+
+        ConnectionSetReadable(false);
+        return true;
+    } else if ((size_t)len <= READ_BUFFER_SIZE) {
+
+        ConnectionSetReadable(false);
+        read_queue.push_back(std::string(buf));
+        std::cout << buf << std::endl;
+        //con->is_readable = 0;
+    }
+
+    //check \r\n\r\n
+    std::string head = ConnectionMergeQueue(this->read_queue);
+    size_t blank_line = head.find("\r\n\r\n");
+    if(blank_line != string::npos) {
+        //we get all header
+        request->SetRequestHead(head.substr(0, blank_line));
+//        std::string remain = head.substr(blank_line + 4, head.size() - blank_line - 4);
+        ConnectionAdjustQueue(this->read_queue, head.substr(blank_line + 4, head.size() - blank_line - 4));
+//        ConnectionAdjustQueue(this->read_queue, remain);
+        ConnectionSetState(CON_STATE_REQUEST_END); 
+    }
+    else {
+        ConnectionSetState(CON_STATE_READ); 
+        //continue read
+        std::cout <<  "continue read" << std::endl;
+    }
+
     return true;
 }
 
 int Connection::ConnectionParseRequest() {
-    return 0;
+
+    if(!request->HttpRequestParse()){
+        std::cout <<  "parse request failed!" << std::endl;
+    }
+
+    if(request->HttpRequestIsPost())
+        return 1;
+    else
+        return 0;
 }
 
 int Connection::ConnectionGenerateResponse() {
@@ -46,6 +115,12 @@ bool Connection::ConnectionWriteToFd() {
 }
 
 bool Connection::ConnectionClose() {
+    request->RequestFree();
+    delete request;
+    response->ResponseFree();
+    delete response;
+    read_queue.clear();
+    write_queue.clear();
     return true;
 }
 
@@ -120,13 +195,17 @@ bool Connection::ConnectionStateMachine(Server* srv) {
 
             break;
         case CON_STATE_CONNECT:
+            ConnectionSetState(CON_STATE_READ);
+            done = 1;
             break;
         case CON_STATE_READ_POST:
         case CON_STATE_READ:
-            if(!ConnectionReadFromFd()){
-                srv->log.Log(kError, "read from fd error");
+            if(!ConnectionReadFromFd()) {
+                srv->log.Log(kInfo, "read from fd Nothing");
+                ConnectionSetState(CON_STATE_CLOSE);
             }
-            ConnectionSetState(CON_STATE_REQUEST_END);
+            //set state inside
+            //ConnectionSetState(CON_STATE_REQUEST_END);
             break;
         case CON_STATE_WRITE:
             if (!this->ConnectionWriteQueueEmpty() && this->is_writable) {
@@ -134,7 +213,7 @@ bool Connection::ConnectionStateMachine(Server* srv) {
                     ConnectionSetState(CON_STATE_ERROR);
                 }
             }
-
+            ConnectionSetState(CON_STATE_RESPONSE_END);
             break;
         case CON_STATE_ERROR: /* transient */
             break;
@@ -143,18 +222,19 @@ bool Connection::ConnectionStateMachine(Server* srv) {
         if (done == -1) {
             done = 0;
         } else if (ostate == this->state) {
-            //std::cout << "read set" << std::endl; 
+            //std::cout << "read set" << std::endl;
             done = 1;
         }
     }
 
     switch(state) {
+    case CON_STATE_CONNECT:
     case CON_STATE_READ_POST:
     case CON_STATE_READ:
     case CON_STATE_CLOSE:
         ev->FdeventEventReset();
         ev->FdeventEventSet(this->fd, FDEVENT_IN);
-        std::cout << "read fd"<< fd << std::endl; 
+        std::cout << "read fd "<< fd << std::endl;
         break;
     case CON_STATE_WRITE:
         /* request write-fdevent only if we really need it
@@ -179,5 +259,8 @@ bool Connection::ConnectionStateMachine(Server* srv) {
 
 }
 }
+
+
+
 
 

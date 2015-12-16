@@ -15,8 +15,9 @@ namespace tril {
 class Network;
 class Request;
 class Response;
+class Configure;
 
-
+const int READ_BUFFER_SIZE = 1024;
 class Connection {
 public:
     //Connection *connection_accept(Network* net, int fd);
@@ -27,6 +28,10 @@ public:
     bool ConnectionWriteToFd();
     bool ConnectionClose();
     bool ConnectionStateMachine(Server* srv);
+
+    Connection(Configure* conf){
+       this->config = conf; 
+    };
 
     inline void ConnectionSetFd(int fd) {
         this->fd = fd;
@@ -85,6 +90,8 @@ public:
     };
 
 private:
+    std::string ConnectionMergeQueue(std::deque<string> queue);
+    void ConnectionAdjustQueue(std::deque<std::string> queue, std::string newdata);
 
     bool is_keepalived;
     bool is_readable;
@@ -96,6 +103,8 @@ private:
     std::string cli_addr;
     Request* request;
     Response* response;
+    Configure* config;
+//    typedef std::deque<std::string>::iterator iter; 
 };
 
 }

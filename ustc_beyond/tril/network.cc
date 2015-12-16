@@ -12,6 +12,7 @@
 #include <iostream>
 #include "fdevent.h"
 #include "connection.h"
+#include "configure.h"
 
 namespace ustc_beyond {
 namespace tril {
@@ -97,10 +98,11 @@ bool Network::NetworkInit(Server* srv) {
 
     network_handle_func = new NetworkHandleFunc();
     connect_handle_func = new ConnectionHandleFdevent();
+    config = srv->GetConfig();
     sock_fd = -1;
 
-    std::string host_port = srv->GetConfig()->GetConfigValue("port");
-    std::string host_name = srv->GetConfig()->GetConfigValue("hostname");
+    std::string host_port = config->GetConfigValue("port");
+    std::string host_name = config->GetConfigValue("hostname");
 
     unsigned int port = StringToNumber<int>(host_port);
     if(port == 0) {
@@ -261,7 +263,7 @@ bool Network::NetworkRegisterFdevents(Server* srv) {
 }
 
 Connection* Network::GetNewConnection() {
-    Connection* con = new Connection();
+    Connection* con = new Connection(config);
     con->ConnectionReset();
     return con;
 }
@@ -319,7 +321,6 @@ Connection * NetworkHandleFunc::ConnectionAccept(Server* srv) {
         ev->FdeventRegister(cnt, net->GetHandleFunc(), con);
         con->ConnectionSetState(CON_STATE_CONNECT);
 
-        std::cout << "connt fd" << cnt << std::endl;
 
         ev->FdeventFcntlSet(cnt);//set non block
         /* ok, we have the connection, register it */
@@ -335,7 +336,7 @@ Connection * NetworkHandleFunc::ConnectionAccept(Server* srv) {
             con->ConnectionSetClientIp(std::string(inet_ntoa(((sock_addr_in*)&cnt_addr)->sin_addr)));
         }
 
-        std::cout << "Success" << std::endl;
+        std::cout << "Success"<< con->ConnectionGetClientIp() << "fd is" << net->GetSockFd() << std::endl;
         return con;
     }
 }

@@ -16,6 +16,7 @@ typedef struct sockaddr_in6 sock_addr_in6;
 
 class Connection;
 class Network;
+class Configure;
 
 class ConnectionHandleFdevent:public HandleFunc{
     handler_t FdeventHandler(Server* srv, void* ctx, int revents);
@@ -50,6 +51,7 @@ public:
 private:
     HandleFunc* network_handle_func;
     HandleFunc* connect_handle_func;
+    Configure* config;
     //std::list<Connection*> con;
     int sock_fd;
     int use_ipv6;
