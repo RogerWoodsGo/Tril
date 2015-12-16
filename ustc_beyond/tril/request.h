@@ -11,7 +11,7 @@ public:
     inline void RequestInit() {
         head_map["Method"] =  std::string("");
         head_map["URI"] =  std::string("");
-        head_map["PROTOCOL"] =  std::string("");
+        head_map["Protocol"] =  std::string("");
     };
 
     inline void RequestFree() {

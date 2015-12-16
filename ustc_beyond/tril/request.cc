@@ -20,7 +20,7 @@ bool Request::HttpRequestParse() {
     if(vt.size() == 3) {
         head_map["Method"] = vt[0];
         head_map["URI"] = vt[1];
-        head_map["PROTOCOL"] = vt[2];
+        head_map["Protocol"] = vt[2];
     }
     else
         return false;

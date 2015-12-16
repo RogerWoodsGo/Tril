@@ -87,7 +87,7 @@ bool Configure::LoadConfig() {
 
     while(getline(fp, line)) {
         std::string trim_line = trim(line);
-        if(StringStartWith(trim_line, "#") || trim_line == "")
+        if(StringStartWith(trim_line, std::string("#")) || trim_line == "")
             continue;
         else {
             vt = StringSplit(trim_line, '=');

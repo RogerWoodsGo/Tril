@@ -15,7 +15,8 @@ std::string GetCurrentFormatTime();
 uint64_t GetCurrentMilisec();
 
 std::vector<std::string> StringSplit(std::string src, char delim);
-bool StringStartWith(std::string src, std::string prefix);
+bool StringStartWith(const std::string& src, const std::string& prefix);
+bool StringEndWith(const std::string& src, const std::string& suffix);
 //bool StringStartWith(std::string src, const char* prefix);
 std::string &ltrim(std::string &s);
 std::string &rtrim(std::string &s);
@@ -32,6 +33,8 @@ template <typename T> T StringToNumber ( const string &Text ){
     T result;
     return ss >> result ? result : 0;
 };
+
+bool FileExist(const std::string& name);
 
 }
 }

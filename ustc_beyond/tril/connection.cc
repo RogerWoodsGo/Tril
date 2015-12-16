@@ -12,6 +12,7 @@
 #include "request.h"
 #include "response.h"
 #include "fdevent.h"
+#include "utils.h"
 
 
 namespace ustc_beyond {
@@ -83,10 +84,10 @@ bool Connection::ConnectionReadFromFd() {
 //        std::string remain = head.substr(blank_line + 4, head.size() - blank_line - 4);
         ConnectionAdjustQueue(this->read_queue, head.substr(blank_line + 4, head.size() - blank_line - 4));
 //        ConnectionAdjustQueue(this->read_queue, remain);
-        ConnectionSetState(CON_STATE_REQUEST_END); 
+        ConnectionSetState(CON_STATE_REQUEST_END);
     }
     else {
-        ConnectionSetState(CON_STATE_READ); 
+        ConnectionSetState(CON_STATE_READ);
         //continue read
         std::cout <<  "continue read" << std::endl;
     }
@@ -96,7 +97,7 @@ bool Connection::ConnectionReadFromFd() {
 
 int Connection::ConnectionParseRequest() {
 
-    if(!request->HttpRequestParse()){
+    if(!request->HttpRequestParse()) {
         std::cout <<  "parse request failed!" << std::endl;
     }
 
@@ -107,6 +108,43 @@ int Connection::ConnectionParseRequest() {
 }
 
 int Connection::ConnectionGenerateResponse() {
+    // query path first
+    std::string url = request->GetHeadValue("URI");
+    std::cout << url << std::endl;
+    std::string htdoc = config->GetConfigValue("htdoc");
+    std::string tmp_url;
+
+    response->SetHeadValue("Protocol", request->GetHeadValue("Protocol"));
+
+    if(StringEndWith(url, "/")) {
+        tmp_url = url + "index.htm";
+        if(!FileExist(htdoc + tmp_url)) {
+            tmp_url = url + "index.html";
+            if(!FileExist(htdoc + tmp_url)) {
+                response->SetHeadValue("Status", "404");
+                return false;
+            }
+        }
+        url = tmp_url;
+    }
+
+    // set header
+    std::string real_path = htdoc + url;
+    if(!FileExist("real_path")){
+        response->SetHeadValue("Status", "404");
+           return false;
+    }
+
+    if(StringEndWith(real_path, "htm") || StringEndWith(real_path, "html"))
+        response->SetHeadValue("Content-Type", "text/html;charset=utf-8");
+    else
+        response->SetHeadValue("Content-Type", "text/plain;charset=utf-8");
+
+     response->SetHeadValue("Status", "200");
+     response->SetHeadValue("Server", "tril 1.0");
+     response->SetHeadValue("Date", "Wed, 16 Dec 2015 13:06:23 GMT");
+        
+    // set content
     return 0;
 }
 
@@ -259,6 +297,8 @@ bool Connection::ConnectionStateMachine(Server* srv) {
 
 }
 }
+
+
 
 
 

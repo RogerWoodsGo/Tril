@@ -1,6 +1,7 @@
 #include "utils.h"
 #include<unistd.h>
 #include<sys/time.h>
+#include <sys/stat.h>
 #include<stdio.h>
 #include<time.h>
 #include<iostream>
@@ -53,11 +54,21 @@ vector<string> StringSplit(string src, char delim) {
     return res;
 }
 
-bool StringStartWith(string src, string prefix) {
+bool StringStartWith(const string& src, const string& prefix) {
     if(src.size() == 0)
         return false;
     size_t pos = src.find(prefix);
     if(pos == 0)
+        return true;
+    else
+        return false;
+}
+
+bool StringEndWith(const string& src, const string& suffix) {
+    if(src.size() == 0)
+        return false;
+    size_t pos = src.rfind(suffix);
+    if((pos + suffix.size()) == src.size())
         return true;
     else
         return false;
@@ -78,6 +89,11 @@ std::string &rtrim(std::string &s) {
 // trim from both ends
 std::string &trim(std::string &s) {
     return ltrim(rtrim(s));
+}
+
+bool FileExist(const std::string& name) {
+  struct stat buffer;   
+  return (stat (name.c_str(), &buffer) == 0); 
 }
 
 }
