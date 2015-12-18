@@ -143,7 +143,9 @@ int Connection::ConnectionGenerateResponse() {
      response->SetHeadValue("Status", "200");
      response->SetHeadValue("Server", "tril 1.0");
      response->SetHeadValue("Date", "Wed, 16 Dec 2015 13:06:23 GMT");
-        
+
+     std::string file_content = GetFileContent(real_path);
+     
     // set content
     return 0;
 }

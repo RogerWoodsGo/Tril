@@ -96,6 +96,16 @@ bool FileExist(const std::string& name) {
   return (stat (name.c_str(), &buffer) == 0); 
 }
 
+std::string GetFileContent(std::string fn){
+    fstream of;
+    of.open(fn.c_str(), fstream::in);
+    if(!of.is_open()) {
+        log.Log(kError, "Open pid file error");
+        return "";
+    }
+    of >>
+}
+
 }
 }
 

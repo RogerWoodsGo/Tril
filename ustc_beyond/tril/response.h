@@ -20,6 +20,7 @@ public:
         return status_reasonphrase[status]; 
     };
 
+
     std::string GenerateResponseString();
 
 private:

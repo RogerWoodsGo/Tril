@@ -36,6 +36,8 @@ template <typename T> T StringToNumber ( const string &Text ){
 
 bool FileExist(const std::string& name);
 
+std::string GetFileContent(std::string fn);
+
 }
 }
 #endif
