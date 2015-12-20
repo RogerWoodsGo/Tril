@@ -12,10 +12,38 @@ void Response::ResponseInit() {
 }
 
 
+bool Response::GenerateFinalResponse() {
+    //status line
+    response += "HTTP/1.1 ";
+    response += head_map["Status"];
+    response += " ";
+    response += GetReasonPhrase();
+    response += "\r\n";
+    //response head
+    response += "Server:";
+    response +=   head_map["Server"];
+    response += "\r\n";
+
+    response += "Date:";
+    response +=   head_map["Date"];
+    response += "\r\n";
+
+    //entity head
+    response += "Content-Length:";
+    response +=   head_map["Content-Length"];
+    response += "\r\n";
+    //entity
+    response += "\r\n";
+    response += entity;
+    return true;
+}
+
 void Response::ResponseFree() {
 }
 
 }
 }
+
+
 
 

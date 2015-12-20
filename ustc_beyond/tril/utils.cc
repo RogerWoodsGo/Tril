@@ -5,9 +5,10 @@
 #include<stdio.h>
 #include<time.h>
 #include<iostream>
+#include<fstream>
 #include<sstream>
 #include<algorithm>
-#include <functional> 
+#include <functional>
 #include <cctype>
 #include <locale>
 
@@ -92,22 +93,30 @@ std::string &trim(std::string &s) {
 }
 
 bool FileExist(const std::string& name) {
-  struct stat buffer;   
-  return (stat (name.c_str(), &buffer) == 0); 
+    struct stat buffer;
+    return (stat (name.c_str(), &buffer) == 0);
 }
 
-std::string GetFileContent(std::string fn){
-    fstream of;
-    of.open(fn.c_str(), fstream::in);
+std::string GetFileContent(std::string fn) {
+    std::fstream of;
+    std::string content;
+    of.open(fn.c_str(), std::fstream::in);
     if(!of.is_open()) {
-        log.Log(kError, "Open pid file error");
+        //log.Log(kError, "Open pid file error");
         return "";
     }
-    of >>
+    std::streampos begin,end;
+    begin = of.tellg();
+    of.seekg (0, ios::end);
+    end = of.tellg();
+    char* buf = new char[end -begin + 1];
+    of.read(buf, end-begin);
+    of.close();
+    content = std::string(buf); 
+    delete []buf;
+    return content;
 }
 
 }
 }
-
-
 

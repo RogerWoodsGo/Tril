@@ -130,9 +130,9 @@ int Connection::ConnectionGenerateResponse() {
 
     // set header
     std::string real_path = htdoc + url;
-    if(!FileExist("real_path")){
+    if(!FileExist("real_path")) {
         response->SetHeadValue("Status", "404");
-           return false;
+        return false;
     }
 
     if(StringEndWith(real_path, "htm") || StringEndWith(real_path, "html"))
@@ -140,14 +140,19 @@ int Connection::ConnectionGenerateResponse() {
     else
         response->SetHeadValue("Content-Type", "text/plain;charset=utf-8");
 
-     response->SetHeadValue("Status", "200");
-     response->SetHeadValue("Server", "tril 1.0");
-     response->SetHeadValue("Date", "Wed, 16 Dec 2015 13:06:23 GMT");
+    response->SetHeadValue("Status", "200");
+    response->SetHeadValue("Server", "tril 1.0");
+    response->SetHeadValue("Date", "Wed, 16 Dec 2015 13:06:23 GMT");
 
-     std::string file_content = GetFileContent(real_path);
-     
+    std::string file_content = GetFileContent(real_path);
+
+    response->SetHeadValue("Content-Length", NumberToString<int>(file_content.size()));
+    std::cout << file_content << std::endl;
+    response->SetResponseEntity(file_content);
+    //生成response
+    response->GenerateFinalResponse();
     // set content
-    return 0;
+    return HANDLER_FINISHED;
 }
 
 bool Connection::ConnectionWriteToFd() {
@@ -299,6 +304,7 @@ bool Connection::ConnectionStateMachine(Server* srv) {
 
 }
 }
+
 
 
 
