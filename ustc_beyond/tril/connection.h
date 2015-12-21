@@ -18,6 +18,7 @@ class Response;
 class Configure;
 
 const int READ_BUFFER_SIZE = 1024;
+const int LIMIT_WRITE_SIZE = 1024 * 256;
 class Connection {
 public:
     //Connection *connection_accept(Network* net, int fd);

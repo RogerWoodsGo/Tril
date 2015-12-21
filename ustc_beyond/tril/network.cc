@@ -19,6 +19,7 @@ namespace tril {
 
 handler_t ConnectionHandleFdevent::FdeventHandler(Server* srv, void* ctx, int revents) {
     std::cout << "this is called" << std::endl;
+    Fdevent* ev = srv->GetFdevent();
     Connection *con = (Connection*)ctx;
 
 
@@ -63,9 +64,15 @@ handler_t ConnectionHandleFdevent::FdeventHandler(Server* srv, void* ctx, int re
         if (len == 0 || (len < 0 && errno != EAGAIN && errno != EINTR) ) {
             //con->close_timeout_ts = srv->cur_ts - (HTTP_LINGER_TIMEOUT+1);
         }
+        ev->FdeventEventDel(con->ConnectionGetFd());
+        ev->FdeventUnregister(con->ConnectionGetFd());
+        
+        return HANDLER_FINISHED;
+        
     }
     //enter the state machine
     con->ConnectionStateMachine(srv);
+    
     return HANDLER_FINISHED;
 }
 

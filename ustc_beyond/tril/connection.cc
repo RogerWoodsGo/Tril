@@ -152,14 +152,37 @@ int Connection::ConnectionGenerateResponse() {
     //生成response
     response->GenerateFinalResponse();
     // set content
+    write_queue.push_back(response->GetFinalResponse());
     return HANDLER_FINISHED;
 }
 
 bool Connection::ConnectionWriteToFd() {
+    int len;
+    std::string content = write_queue[0];
+    len = write(fd, content.c_str(), content.size());
+    if(len >= 0) {
+        if(len < content.size()) { //not finished
+            write_queue.clear();
+            write_queue.push_back(content.substr(len, content.size() - len));
+            ConnectionSetState(CON_STATE_WRITE);
+        }
+        else { //we have finished
+            ConnectionSetState(CON_STATE_RESPONSE_END);
+        }
+    }
+    else {
+        switch(errno) {
+        case EAGAIN :
+        case EINTR :
+            std::cout << "write fd error" << std::endl;
+            break;
+        }
+    }
     return true;
 }
 
 bool Connection::ConnectionClose() {
+    //close(fd);
     request->RequestFree();
     delete request;
     response->ResponseFree();
@@ -200,7 +223,8 @@ bool Connection::ConnectionStateMachine(Server* srv) {
             switch (r = ConnectionGenerateResponse()) {
             case HANDLER_FINISHED:
                 /* we have something to send, go on */
-                ConnectionSetState(CON_STATE_RESPONSE_START);
+                //ConnectionSetState(CON_STATE_RESPONSE_START);
+                ConnectionSetState(CON_STATE_WRITE);
                 break;
             case HANDLER_ERROR:
                 /* something went wrong */
@@ -211,27 +235,28 @@ bool Connection::ConnectionStateMachine(Server* srv) {
             }
 
             break;
-        case CON_STATE_RESPONSE_START:
-            if (-1 == ConnectionGenerateResponse()) {
-                ConnectionSetState(CON_STATE_ERROR);
+        /*        case CON_STATE_RESPONSE_START:
+                    if (-1 == ConnectionGenerateResponse()) {
+                        ConnectionSetState(CON_STATE_ERROR);
 
-                break;
-            }
+                        break;
+                    }
 
-            ConnectionSetState(CON_STATE_WRITE);
-            break;
+                    ConnectionSetState(CON_STATE_WRITE);
+                    break;
+                    */
         case CON_STATE_RESPONSE_END: /* transient */
             /* log the request */
 
             if (this->is_keepalived) {
                 ConnectionSetState(CON_STATE_REQUEST_START);
 
-                ConnectionSetState(CON_STATE_CLOSE);
             } else {
-                ConnectionClose();
+                ConnectionSetState(CON_STATE_CLOSE);
             }
             break;
         case CON_STATE_CLOSE:
+            ConnectionClose();
             /* we have to do the linger_on_close stuff regardless
              * of con->keep_alive; even non-keepalive sockets may
              * still have unread data, and closing before reading
@@ -258,7 +283,6 @@ bool Connection::ConnectionStateMachine(Server* srv) {
                     ConnectionSetState(CON_STATE_ERROR);
                 }
             }
-            ConnectionSetState(CON_STATE_RESPONSE_END);
             break;
         case CON_STATE_ERROR: /* transient */
             break;
@@ -304,11 +328,5 @@ bool Connection::ConnectionStateMachine(Server* srv) {
 
 }
 }
-
-
-
-
-
-
 
 
