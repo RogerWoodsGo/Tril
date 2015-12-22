@@ -187,7 +187,7 @@ void Server::Start() {
 
         }
         
-        sleep(2);
+    //    sleep(2);
     }
 //    if(!this->is_freed)
 }

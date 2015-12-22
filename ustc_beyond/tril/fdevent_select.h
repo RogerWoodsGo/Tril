@@ -27,6 +27,7 @@ private:
     fd_set select_error; 
 
     int select_max_fd;
+    int pre_max_fd;
 };
 }
 }

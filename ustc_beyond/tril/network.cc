@@ -38,22 +38,23 @@ handler_t ConnectionHandleFdevent::FdeventHandler(Server* srv, void* ctx, int re
 
     }
 
-    if (con->ConnectionGetState() == CON_STATE_READ ||
-            con->ConnectionGetState() == CON_STATE_READ_POST) {
-        if(!con->ConnectionReadFromFd()) {
-            srv->log.Log(kError, "read from fd error");
-        };
-    }
+    /*   if (con->ConnectionGetState() == CON_STATE_READ ||
+               con->ConnectionGetState() == CON_STATE_READ_POST) {
+           if(!con->ConnectionReadFromFd()) {
+               srv->log.Log(kError, "read from fd error");
+           };
+       }
 
-    if (con->ConnectionGetState() == CON_STATE_WRITE &&
-            !con->ConnectionWriteQueueEmpty() &&
-            con->ConnectionGetWriteable()) {
+       if (con->ConnectionGetState() == CON_STATE_WRITE &&
+               !con->ConnectionWriteQueueEmpty() &&
+               con->ConnectionGetWriteable()) {
 
-        if (!con->ConnectionWriteToFd()) {
-            con->ConnectionSetState(CON_STATE_ERROR);
-            srv->log.Log(kError, "handle write failed.");
-        }
-    }
+           if (!con->ConnectionWriteToFd()) {
+               con->ConnectionSetState(CON_STATE_ERROR);
+               srv->log.Log(kError, "handle write failed.");
+           }
+       }
+       */
 
     if (con->ConnectionGetState() == CON_STATE_CLOSE) {
         /* flush the read buffers */
@@ -66,13 +67,14 @@ handler_t ConnectionHandleFdevent::FdeventHandler(Server* srv, void* ctx, int re
         }
         ev->FdeventEventDel(con->ConnectionGetFd());
         ev->FdeventUnregister(con->ConnectionGetFd());
-        
+        std::cout <<  "If close?" << std::endl;
+
         return HANDLER_FINISHED;
-        
+
     }
     //enter the state machine
     con->ConnectionStateMachine(srv);
-    
+
     return HANDLER_FINISHED;
 }
 
@@ -87,6 +89,7 @@ handler_t NetworkHandleFunc::FdeventHandler(Server* srv, void* ctx, int revents)
         return HANDLER_ERROR;
     }
 
+    std::cout << "a new connection coming" << std::endl;
     /* accept()s at most 100 connections directly
      *
      * we jump out after 100 to give the waiting connections a chance */
@@ -117,10 +120,11 @@ bool Network::NetworkInit(Server* srv) {
         return false;
     }
 
-    if(host_name == "") {
-        srv->log.Log(kError, "Get host name error");
-        return false;
-    }
+    /*   if(host_name == "") {
+           srv->log.Log(kInfo, "Get host name error");
+           //return false;
+       }
+       */
 
 
     int val;
@@ -349,6 +353,7 @@ Connection * NetworkHandleFunc::ConnectionAccept(Server* srv) {
 }
 }
 }
+
 
 
 

@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include<stdio.h>
 #include<time.h>
+#include<string.h>
 #include<iostream>
 #include<fstream>
 #include<sstream>
@@ -100,19 +101,22 @@ bool FileExist(const std::string& name) {
 std::string GetFileContent(std::string fn) {
     std::fstream of;
     std::string content;
-    of.open(fn.c_str(), std::fstream::in);
+    of.open(fn.c_str(), ios::in | ios::ate);
+//    of.open("/home/beyondwu/workspace/CPP/tril/Tril/ustc_beyond/tril/htdocs/index.html", ios::in);
     if(!of.is_open()) {
         //log.Log(kError, "Open pid file error");
         return "";
     }
-    std::streampos begin,end;
-    begin = of.tellg();
-    of.seekg (0, ios::end);
+    std::streampos begin = 0, end;
+    //of.seekg (0, ios::end);
     end = of.tellg();
-    char* buf = new char[end -begin + 1];
-    of.read(buf, end-begin);
-    of.close();
+    of.seekg (0, ios::beg);
+    char* buf = new char[end - begin + 1]();
+//    memset(buf, 0, end - begin + 1);
+    of.read(buf, end);
     content = std::string(buf); 
+    std::cout << end << "and " << "buf" << buf << std::endl;
+    of.close();
     delete []buf;
     return content;
 }

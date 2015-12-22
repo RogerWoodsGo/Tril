@@ -68,7 +68,7 @@ void Configure::SetDefault() {
     config_kv["worker"] = "3";
     config_kv["debug"] = "1";
     config_kv["port"] = "80";
-    config_kv["hostname"] = "localhost";
+    config_kv["hostname"] = "";
     config_kv["ipaddr"] = "127.0.0.1";
     config_kv["pidfile"] = "tril.pid";
     config_kv["htdoc"] = "htdoc";
@@ -104,8 +104,8 @@ bool Configure::LoadConfig() {
                 config_kv["hostname"] = trim(vt[1]);
             else if(trim(vt[0]) == "ipaddr")
                 config_kv["ipaddr"] = trim(vt[1]);
-            else if(trim(vt[0]) == "htroot")
-                config_kv["htroot"] = trim(vt[1]);
+            else if(trim(vt[0]) == "htdoc")
+                config_kv["htdoc"] = trim(vt[1]);
             else if(trim(vt[0]) == "debug")
                 config_kv["debug"] = trim(vt[1]);
             else if(trim(vt[0]) == "pidfile")

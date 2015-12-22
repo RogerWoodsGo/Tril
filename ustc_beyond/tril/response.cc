@@ -20,18 +20,25 @@ bool Response::GenerateFinalResponse() {
     response += GetReasonPhrase();
     response += "\r\n";
     //response head
-    response += "Server:";
-    response +=   head_map["Server"];
-    response += "\r\n";
+    if(head_map["Server"] != "") {
+        response += "Server:";
+        response +=   head_map["Server"];
+        response += "\r\n";
 
-    response += "Date:";
-    response +=   head_map["Date"];
-    response += "\r\n";
+    }
+
+    if(head_map["Date"] != "") {
+        response += "Date:";
+        response +=   head_map["Date"];
+        response += "\r\n";
+    }
 
     //entity head
-    response += "Content-Length:";
-    response +=   head_map["Content-Length"];
-    response += "\r\n";
+    if(head_map["Content-Length"] != "") {
+        response += "Content-Length:";
+        response +=   head_map["Content-Length"];
+        response += "\r\n";
+    }
     //entity
     response += "\r\n";
     response += entity;
@@ -43,6 +50,7 @@ void Response::ResponseFree() {
 
 }
 }
+
 
 
 

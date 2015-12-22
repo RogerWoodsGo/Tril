@@ -20,7 +20,7 @@ namespace tril {
 //public
 
 bool Connection::ConnectionReset() {
-    this->is_keepalived = 1;
+    this->is_keepalived = 0;
     this->is_writable = 0;
     this->is_readable = 0;
     request = new Request();
@@ -110,11 +110,16 @@ int Connection::ConnectionParseRequest() {
 int Connection::ConnectionGenerateResponse() {
     // query path first
     std::string url = request->GetHeadValue("URI");
-    std::cout << url << std::endl;
+    //std::cout << url << std::endl;
     std::string htdoc = config->GetConfigValue("htdoc");
     std::string tmp_url;
+    std::string file_content;
 
     response->SetHeadValue("Protocol", request->GetHeadValue("Protocol"));
+
+    response->SetHeadValue("Server", "tril 1.0");
+    response->SetHeadValue("Date", "Wed, 16 Dec 2015 13:06:23 GMT");
+    response->SetHeadValue("Content-Type", "text/html;charset=utf-8");
 
     if(StringEndWith(url, "/")) {
         tmp_url = url + "index.htm";
@@ -122,7 +127,7 @@ int Connection::ConnectionGenerateResponse() {
             tmp_url = url + "index.html";
             if(!FileExist(htdoc + tmp_url)) {
                 response->SetHeadValue("Status", "404");
-                return false;
+                return HANDLER_FINISHED;
             }
         }
         url = tmp_url;
@@ -130,9 +135,14 @@ int Connection::ConnectionGenerateResponse() {
 
     // set header
     std::string real_path = htdoc + url;
-    if(!FileExist("real_path")) {
+    std::cout <<"real_path is" << real_path << std::endl;
+    if(!FileExist(real_path)) {
         response->SetHeadValue("Status", "404");
-        return false;
+        file_content = "<html<body><h1>Sorry, 404 Not Found</h1></body></html>"; 
+        response->SetHeadValue("Content-Length", NumberToString<int>(file_content.size()));
+        //std::cout << file_content << std::endl;
+        response->SetResponseEntity(file_content);
+        return HANDLER_FINISHED;
     }
 
     if(StringEndWith(real_path, "htm") || StringEndWith(real_path, "html"))
@@ -141,22 +151,22 @@ int Connection::ConnectionGenerateResponse() {
         response->SetHeadValue("Content-Type", "text/plain;charset=utf-8");
 
     response->SetHeadValue("Status", "200");
-    response->SetHeadValue("Server", "tril 1.0");
-    response->SetHeadValue("Date", "Wed, 16 Dec 2015 13:06:23 GMT");
 
-    std::string file_content = GetFileContent(real_path);
+    std::cout << real_path << std::endl;
+    file_content = GetFileContent(real_path);
 
     response->SetHeadValue("Content-Length", NumberToString<int>(file_content.size()));
-    std::cout << file_content << std::endl;
+//    std::cout << file_content << std::endl;
     response->SetResponseEntity(file_content);
-    //生成response
-    response->GenerateFinalResponse();
-    // set content
-    write_queue.push_back(response->GetFinalResponse());
     return HANDLER_FINISHED;
 }
 
 bool Connection::ConnectionWriteToFd() {
+    //生成response
+    response->GenerateFinalResponse();
+    // set content
+    write_queue.push_back(response->GetFinalResponse());
+
     int len;
     std::string content = write_queue[0];
     len = write(fd, content.c_str(), content.size());
@@ -167,6 +177,7 @@ bool Connection::ConnectionWriteToFd() {
             ConnectionSetState(CON_STATE_WRITE);
         }
         else { //we have finished
+            std::cout << "Finished Sending The File " << len << " and "<< content << std::endl;
             ConnectionSetState(CON_STATE_RESPONSE_END);
         }
     }
@@ -182,7 +193,7 @@ bool Connection::ConnectionWriteToFd() {
 }
 
 bool Connection::ConnectionClose() {
-    //close(fd);
+    shutdown(fd, SHUT_WR);
     request->RequestFree();
     delete request;
     response->ResponseFree();
@@ -222,9 +233,11 @@ bool Connection::ConnectionStateMachine(Server* srv) {
 
             switch (r = ConnectionGenerateResponse()) {
             case HANDLER_FINISHED:
+                std::cout << "Generate Response Success!" << std::endl;
                 /* we have something to send, go on */
                 //ConnectionSetState(CON_STATE_RESPONSE_START);
                 ConnectionSetState(CON_STATE_WRITE);
+                done = 1;
                 break;
             case HANDLER_ERROR:
                 /* something went wrong */
@@ -253,10 +266,12 @@ bool Connection::ConnectionStateMachine(Server* srv) {
 
             } else {
                 ConnectionSetState(CON_STATE_CLOSE);
+                std::cout << "Start to close fd" << std::endl;
             }
             break;
         case CON_STATE_CLOSE:
             ConnectionClose();
+            done = 1;
             /* we have to do the linger_on_close stuff regardless
              * of con->keep_alive; even non-keepalive sockets may
              * still have unread data, and closing before reading
@@ -278,11 +293,11 @@ bool Connection::ConnectionStateMachine(Server* srv) {
             //ConnectionSetState(CON_STATE_REQUEST_END);
             break;
         case CON_STATE_WRITE:
-            if (!this->ConnectionWriteQueueEmpty() && this->is_writable) {
-                if (false == ConnectionWriteToFd()) {
-                    ConnectionSetState(CON_STATE_ERROR);
-                }
+            //if (!this->ConnectionWriteQueueEmpty()) {
+            if (false == ConnectionWriteToFd()) {
+                ConnectionSetState(CON_STATE_ERROR);
             }
+            //}
             break;
         case CON_STATE_ERROR: /* transient */
             break;
@@ -301,11 +316,13 @@ bool Connection::ConnectionStateMachine(Server* srv) {
     case CON_STATE_READ_POST:
     case CON_STATE_READ:
     case CON_STATE_CLOSE:
-        ev->FdeventEventReset();
+        //ev->FdeventEventDel(fd);
         ev->FdeventEventSet(this->fd, FDEVENT_IN);
         std::cout << "read fd "<< fd << std::endl;
         break;
     case CON_STATE_WRITE:
+        //ev->FdeventEventDel(fd);
+        ev->FdeventEventSet(this->fd, FDEVENT_OUT);
         /* request write-fdevent only if we really need it
          * - if we have data to write
          * - if the socket is not writable yet
@@ -328,5 +345,7 @@ bool Connection::ConnectionStateMachine(Server* srv) {
 
 }
 }
+
+
 
 
